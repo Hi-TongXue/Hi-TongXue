@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RGB全色浏览器 (16777216种颜色)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .intro {
+            color: #666;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .search-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .search-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+        .rgb-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rgb-input {
+            width: 70px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 15px;
+            text-align: center;
+        }
+        .rgb-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .separator {
+            color: #999;
+            font-size: 18px;
+        }
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        .btn-secondary {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background-color: #e1e1e1;
+        }
+        .color-preview {
+            margin: 30px auto;
+            text-align: center;
+        }
+        .preview-box {
+            width: 220px;
+            height: 220px;
+            margin: 0 auto 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            transition: transform 0.3s;
+        }
+        .preview-box:hover {
+            transform: scale(1.02);
+        }
+        .color-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .info-item {
+            margin: 10px 0;
+            font-size: 15px;
+        }
+        .info-label {
+            display: inline-block;
+            width: 90px;
+            color: #666;
+        }
+        .info-value {
+            font-family: monospace;
+            background: #f8f8f8;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+        .color-navigation {
+            margin: 30px 0;
+        }
+        .sliders {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .slider-group {
+            margin-bottom: 20px;
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .slider-label {
+            font-weight: 500;
+        }
+        .slider-value {
+            font-family: monospace;
+            color: #3498db;
+        }
+        .slider {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #eee;
+            border-radius: 3px;
+            outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .slider.red::-webkit-slider-thumb {
+            background: #e74c3c;
+        }
+        .slider.green::-webkit-slider-thumb {
+            background: #2ecc71;
+        }
+        .slider.blue::-webkit-slider-thumb {
+            background: #3498db;
+        }
+        .grid-navigation {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+            gap: 5px;
+            margin-bottom: 30px;
+        }
+        .color-cell {
+            aspect-ratio: 1;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+        .color-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+        .color-cell.active {
+            outline: 3px solid #3498db;
+        }
+        .cell-code {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 2px;
+            font-size: 8px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .color-cell:hover .cell-code {
+            opacity: 1;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2ecc71;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .notification.show {
+            opacity: 1;
+        }
+        @media (max-width: 768px) {
+            .rgb-input {
+                width: 60px;
+            }
+            .preview-box {
+                width: 180px;
+                height: 180px;
+            }
+            .color-grid {
+                grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RGB全色浏览器</h1>
+            <p class="intro">支持所有16777216种RGB颜色（256×256×256），可精确搜索任意颜色并查看详细信息</p>
+        </header>
+
+        <div class="search-panel">
+            <div class="search-form">
+                <div class="rgb-input-group">
+                    <input type="number" class="rgb-input" id="rInput" min="0" max="255" value="255" placeholder="R">
+                    <span class="separator">,</span>
+                    <input type="number" class="rgb-input" id="gInput" min="0" max="255" value="0" placeholder="G">
+                    <span class="separator">,</span>
+                    <input type="number" class="rgb-input" id="bInput" min="0" max="255" value="0" placeholder="B">
+                </div>
+                <button class="btn btn-primary" id="searchBtn">
+                    <i class="fas fa-search"></i> 查找颜色
+                </button>
+                <button class="btn btn-secondary" id="copyBtn">
+                    <i class="fas fa-copy"></i> 复制代码
+                </button>
+            </div>
+        </div>
+
+        <div class="color-preview">
+            <div class="preview-box" id="previewBox"></div>
+            <div class="color-info">
+                <div class="info-item">
+                    <span class="info-label">RGB:</span>
+                    <span class="info-value" id="rgbCode">rgb(255, 0, 0)</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">十六进制:</span>
+                    <span class="info-value" id="hexCode">#FF0000</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">十进制值:</span>
+                    <span class="info-value" id="decCode">16711680</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="color-navigation">
+            <div class="sliders">
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">红色 (R)</span>
+                        <span class="slider-value" id="rValue">255</span>
+                    </div>
+                    <input type="range" class="slider red" id="rSlider" min="0" max="255" value="255">
+                </div>
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">绿色 (G)</span>
+                        <span class="slider-value" id="gValue">0</span>
+                    </div>
+                    <input type="range" class="slider green" id="gSlider" min="0" max="255" value="0">
+                </div>
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span class="slider-label">蓝色 (B)</span>
+                        <span class="slider-value" id="bValue">0</span>
+                    </div>
+                    <input type="range" class="slider blue" id="bSlider" min="0" max="255" value="0">
+                </div>
+            </div>
+
+            <div class="grid-navigation">
+                <button class="btn btn-secondary" id="prevBtn">
+                    <i class="fas fa-chevron-left"></i> 上一页
+                </button>
+                <button class="btn btn-secondary" id="nextBtn">
+                    下一页 <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <div class="color-grid" id="colorGrid"></div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // 全局状态管理
+        let currentR = 255;
+        let currentG = 0;
+        let currentB = 0;
+        let gridPage = 0;
+        const CELLS_PER_PAGE = 320; // 每页显示的颜色数量
+
+        // RGB转十六进制
+        function rgbToHex(r, g, b) {
+            return `#${[r, g, b]
+                .map(c => Math.min(255, Math.max(0, c))
+                    .toString(16)
+                    .padStart(2, '0'))
+                .join('')
+                .toUpperCase()}`;
+        }
+
+        // 计算文字颜色（基于背景亮度）
+        function getTextColor(r, g, b) {
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance > 0.5 ? '#000000' : '#FFFFFF';
+        }
+
+        // 更新颜色预览
+        function updateColorPreview(r, g, b) {
+            // 确保值在0-255范围内
+            r = Math.min(255, Math.max(0, r));
+            g = Math.min(255, Math.max(0, g));
+            b = Math.min(255, Math.max(0, b));
+
+            // 计算各种颜色表示形式
+            const rgbStr = `rgb(${r}, ${g}, ${b})`;
+            const hexStr = rgbToHex(r, g, b);
+            const decValue = (r << 16) + (g << 8) + b; // 唯一的十进制标识符
+
+            // 更新UI
+            document.getElementById('previewBox').style.backgroundColor = rgbStr;
+            document.getElementById('rgbCode').textContent = rgbStr;
+            document.getElementById('hexCode').textContent = hexStr;
+            document.getElementById('decCode').textContent = decValue;
+
+            // 更新输入控件
+            document.getElementById('rInput').value = r;
+            document.getElementById('gInput').value = g;
+            document.getElementById('bInput').value = b;
+            document.getElementById('rSlider').value = r;
+            document.getElementById('gSlider').value = g;
+            document.getElementById('bSlider').value = b;
+            document.getElementById('rValue').textContent = r;
+            document.getElementById('gValue').textContent = g;
+            document.getElementById('bValue').textContent = b;
+
+            // 保存当前值
+            currentR = r;
+            currentG = g;
+            currentB = b;
+        }
+
+        // 生成颜色网格（当前颜色周围的颜色）
+        function generateColorGrid() {
+            const grid = document.getElementById('colorGrid');
+            grid.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+
+            // 计算当前颜色的十进制值（唯一标识）
+            const currentDec = (currentR << 16) + (currentG << 8) + currentB;
+            
+            // 计算当前页的起始位置
+            const startOffset = gridPage * CELLS_PER_PAGE - CELLS_PER_PAGE / 2;
+
+            // 生成颜色单元格
+            for (let i = 0; i < CELLS_PER_PAGE; i++) {
+                // 计算颜色的十进制值（确保在有效范围内）
+                let colorDec = currentDec + startOffset + i;
+                if (colorDec < 0) colorDec = 0;
+                if (colorDec > 16777215) colorDec = 16777215;
+
+                // 从十进制值解析RGB
+                const r = (colorDec >> 16) & 0xFF;
+                const g = (colorDec >> 8) & 0xFF;
+                const b = colorDec & 0xFF;
+
+                // 创建颜色单元格
+                const cell = document.createElement('div');
+                cell.className = `color-cell ${r === currentR && g === currentG && b === currentB ? 'active' : ''}`;
+                cell.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+                cell.dataset.r = r;
+                cell.dataset.g = g;
+                cell.dataset.b = b;
+
+                // 添加颜色代码标签（悬停显示）
+                const textColor = getTextColor(r, g, b);
+                cell.innerHTML = `<div class="cell-code" style="color: ${textColor}">${r},${g},${b}</div>`;
+
+                // 点击单元格更新当前颜色
+                cell.addEventListener('click', () => {
+                    updateColorPreview(r, g, b);
+                    gridPage = 0; // 重置页码
+                    generateColorGrid();
+                });
+
+                fragment.appendChild(cell);
+            }
+
+            grid.appendChild(fragment);
+        }
+
+        // 搜索颜色（精确匹配，无重复）
+        function searchColor() {
+            try {
+                // 获取并验证输入值
+                let r = parseInt(document.getElementById('rInput').value) || 0;
+                let g = parseInt(document.getElementById('gInput').value) || 0;
+                let b = parseInt(document.getElementById('bInput').value) || 0;
+
+                // 限制在有效范围内
+                r = Math.min(255, Math.max(0, r));
+                g = Math.min(255, Math.max(0, g));
+                b = Math.min(255, Math.max(0, b));
+
+                // 更新预览并刷新网格
+                updateColorPreview(r, g, b);
+                gridPage = 0;
+                generateColorGrid();
+
+                showNotification(`已找到颜色: rgb(${r}, ${g}, ${b})`);
+            } catch (error) {
+                showNotification('请输入有效的RGB值（0-255）');
+            }
+        }
+
+        // 显示通知
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 2000);
+        }
+
+        // 复制颜色代码
+        function copyColorCode() {
+            const rgbCode = document.getElementById('rgbCode').textContent;
+            const hexCode = document.getElementById('hexCode').textContent;
+            const textToCopy = `${rgbCode} | ${hexCode}`;
+            
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => showNotification('颜色代码已复制'))
+                .catch(() => showNotification('复制失败，请手动复制'));
+        }
+
+        // 绑定事件处理
+        function bindEvents() {
+            // 搜索按钮
+            document.getElementById('searchBtn').addEventListener('click', searchColor);
+
+            // 复制按钮
+            document.getElementById('copyBtn').addEventListener('click', copyColorCode);
+
+            // 滑块事件
+            document.getElementById('rSlider').addEventListener('input', (e) => {
+                updateColorPreview(parseInt(e.target.value), currentG, currentB);
+                gridPage = 0;
+                generateColorGrid();
+            });
+
+            document.getElementById('gSlider').addEventListener('input', (e) => {
+                updateColorPreview(currentR, parseInt(e.target.value), currentB);
+                gridPage = 0;
+                generateColorGrid();
+            });
+
+            document.getElementById('bSlider').addEventListener('input', (e) => {
+                updateColorPreview(currentR, currentG, parseInt(e.target.value));
+                gridPage = 0;
+                generateColorGrid();
+            });
+
+            // 输入框回车事件
+            ['rInput', 'gInput', 'bInput'].forEach(id => {
+                document.getElementById(id).addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') searchColor();
+                });
+            });
+
+            // 分页导航
+            document.getElementById('prevBtn').addEventListener('click', () => {
+                gridPage = Math.max(0, gridPage - 1);
+                generateColorGrid();
+            });
+
+            document.getElementById('nextBtn').addEventListener('click', () => {
+                // 计算最大页码（防止超出范围）
+                const maxPage = Math.floor((16777215) / CELLS_PER_PAGE);
+                gridPage = Math.min(maxPage, gridPage + 1);
+                generateColorGrid();
+            });
+        }
+
+        // 初始化
+        function init() {
+            updateColorPreview(currentR, currentG, currentB);
+            generateColorGrid();
+            bindEvents();
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+    
