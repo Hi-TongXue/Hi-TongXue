@@ -127,7 +127,7 @@ void setup() {
 
   Serial.print("初始化OLED中...");
   Wire.begin(OLED_SDA, OLED_SCL);                     //OLED接口初始化
-  if (!oled.begin(SSD1306_SWITCHCAPVCCou, 0x3C)) {      //检测OLED是否连接并初始化
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {      //检测OLED是否连接并初始化
     Serial.println("偶~不~失 败 了！");
     while (1);//连接失败 停止
   }
