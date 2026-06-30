@@ -11,7 +11,7 @@
 - C Programming
 - Arduino Development
 - 物联网 & 嵌入式系统
-- 技术自学
+- 工业 PLC HMI
 
 ## 📹 我的哔哩哔哩
 - 哔哩哔哩ID：`620162563`
