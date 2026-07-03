@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INA226 串口监控 · V1.0</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ===== CSS 变量（无模糊） ===== */
+        :root {
+            --bg-r: 11;
+            --bg-g: 14;
+            --bg-b: 23;
+            --dash-r: 18;
+            --dash-g: 26;
+            --dash-b: 40;
+            --card-r: 255;
+            --card-g: 255;
+            --card-b: 255;
+            --text-primary: #f0f4ff;
+            --text-secondary: #8899bb;
+            --text-muted: #5a6f93;
+            --border-color: rgba(255, 255, 255, 0.04);
+            --shadow-color: rgba(0, 0, 0, 0.7);
+            --card-alpha: 0.04;
+            --dash-alpha: 0.80;
+            --bg-image: linear-gradient(135deg, #0b0e17, #1a2332);
+        }
+        [data-theme="light"] {
+            --bg-r: 240;
+            --bg-g: 245;
+            --bg-b: 250;
+            --dash-r: 255;
+            --dash-g: 255;
+            --dash-b: 255;
+            --card-r: 0;
+            --card-g: 0;
+            --card-b: 0;
+            --text-primary: #1a2332;
+            --text-secondary: #4a5a7a;
+            --text-muted: #6a7a9a;
+            --border-color: rgba(0, 0, 0, 0.06);
+            --shadow-color: rgba(0, 0, 0, 0.15);
+            --card-alpha: 0.06;
+            --bg-image: linear-gradient(135deg, #e8ecf1, #d5dce6);
+        }
+        [data-theme="dark"] {
+            --bg-r: 11;
+            --bg-g: 14;
+            --bg-b: 23;
+            --dash-r: 18;
+            --dash-g: 26;
+            --dash-b: 40;
+            --card-r: 255;
+            --card-g: 255;
+            --card-b: 255;
+            --text-primary: #f0f4ff;
+            --text-secondary: #8899bb;
+            --text-muted: #5a6f93;
+            --border-color: rgba(255, 255, 255, 0.04);
+            --shadow-color: rgba(0, 0, 0, 0.7);
+            --card-alpha: 0.04;
+            --bg-image: linear-gradient(135deg, #0b0e17, #1a2332);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-color: transparent;
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: var(--text-primary);
+        }
+        .dashboard {
+            max-width: 1280px;
+            width: 100%;
+            background-color: rgba(var(--dash-r), var(--dash-g), var(--dash-b), var(--dash-alpha));
+            border-radius: 40px;
+            padding: 36px 40px 44px;
+            box-shadow: 0 25px 60px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s, box-shadow 0.3s, border-color 0.3s;
+            position: relative;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .header-left .icon-badge {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(145deg, #1e88e5, #0d47a1);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(30,136,229,0.3);
+        }
+        .header-left h1 {
+            font-weight: 600;
+            font-size: 26px;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+        .header-left h1 small {
+            font-weight: 400;
+            font-size: 15px;
+            color: var(--text-secondary);
+            display: block;
+            margin-top: 2px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-right .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #78909c;
+            transition: background 0.3s;
+        }
+        .status-dot.online {
+            background: #4caf50;
+            box-shadow: 0 0 12px rgba(76,175,80,0.5);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%,100% { opacity:1; transform:scale(1); }
+            50% { opacity:0.5; transform:scale(0.85); }
+        }
+        .connect-btn {
+            background: #1e88e5;
+            border: none;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.2s;
+            box-shadow: 0 6px 20px rgba(30,136,229,0.3);
+        }
+        .connect-btn:hover { background: #1565c0; transform: scale(1.02); }
+        .connect-btn:active { transform: scale(0.96); }
+        .connect-btn.disconnected { background: #546e7a; box-shadow: none; }
+        .connect-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .settings-toggle {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .settings-toggle:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            transform: rotate(60deg);
+        }
+        .settings-panel {
+            position: absolute;
+            top: 80px;
+            right: 40px;
+            width: 320px;
+            background: rgba(var(--dash-r), var(--dash-g), var(--dash-b), 0.95);
+            border-radius: 28px;
+            padding: 24px 26px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 60px var(--shadow-color);
+            z-index: 100;
+            display: none;
+            transition: opacity 0.3s, transform 0.3s;
+            transform-origin: top right;
+        }
+        .settings-panel.open {
+            display: block;
+            animation: slideIn 0.25s ease;
+        }
+        @keyframes slideIn {
+            from { opacity:0; transform: scale(0.95) translateY(-10px); }
+            to { opacity:1; transform: scale(1) translateY(0); }
+        }
+        .settings-panel h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .settings-panel h3 i { color: var(--text-secondary); }
+        .settings-group {
+            margin-bottom: 22px;
+        }
+        .settings-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+        }
+        .theme-options {
+            display: flex;
+            gap: 8px;
+        }
+        .theme-options button {
+            flex: 1;
+            padding: 8px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 40px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.25s;
+        }
+        .theme-options button:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .theme-options button.active {
+            background: #1e88e5;
+            color: #fff;
+            border-color: #1e88e5;
+        }
+        .wallpaper-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .wallpaper-options .preset {
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: 0.2s;
+            background-size: cover;
+            background-position: center;
+        }
+        .wallpaper-options .preset:hover { transform: scale(1.05); }
+        .wallpaper-options .preset.active { border-color: #1e88e5; box-shadow: 0 0 16px rgba(30,136,229,0.4); }
+        .wallpaper-upload {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .wallpaper-upload input[type="file"] {
+            display: none;
+        }
+        .wallpaper-upload .upload-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 40px;
+            padding: 6px 18px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .wallpaper-upload .upload-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+        .opacity-slider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .opacity-slider input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            height: 4px;
+            border-radius: 4px;
+            outline: none;
+        }
+        .opacity-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #1e88e5;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(30,136,229,0.3);
+        }
+        .opacity-slider .opacity-value {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            min-width: 36px;
+            text-align: center;
+        }
+        .speed-slider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .speed-slider input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            height: 4px;
+            border-radius: 4px;
+            outline: none;
+        }
+        .speed-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffb74d;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(255,183,77,0.3);
+        }
+        .speed-slider .speed-value {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            min-width: 60px;
+            text-align: center;
+        }
+        .settings-close {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .settings-close:hover { color: var(--text-primary); }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        .card {
+            background-color: rgba(var(--card-r), var(--card-g), var(--card-b), var(--card-alpha));
+            border-radius: 28px;
+            padding: 24px 22px 26px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 24px var(--shadow-color);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            position: relative;
+            overflow: hidden;
+            will-change: transform;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px var(--shadow-color);
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            opacity: 0.6;
+        }
+        .card-voltage::before { background: linear-gradient(90deg,#42a5f5,#1e88e5); }
+        .card-current::before { background: linear-gradient(90deg,#ffb74d,#f57c00); }
+        .card-power::before { background: linear-gradient(90deg,#66bb6a,#2e7d32); }
+        .card-shunt::before { background: linear-gradient(90deg,#ab47bc,#6a1b9a); }
+        .card .label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+        .card .label i { font-size: 18px; width: 22px; color: var(--text-secondary); }
+        .card .value {
+            font-size: 42px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.1;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .card .value .unit {
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+        .card .sub-info {
+            margin-top: 14px;
+            font-size: 13px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            padding-top: 14px;
+        }
+        .card .sub-info i { margin-right: 6px; }
+        /* 移除 .value.flash 动画，不再使用 */
+        .footer-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border-color);
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .footer-bar .left { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .footer-bar .left .chip {
+            background: rgba(var(--card-r), var(--card-g), var(--card-b), 0.04);
+            padding: 4px 14px;
+            border-radius: 40px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .footer-bar .right { display: flex; gap: 12px; }
+        .footer-bar .right .action-btn {
+            background: rgba(var(--card-r), var(--card-g), var(--card-b), 0.04);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .footer-bar .right .action-btn:hover {
+            background: rgba(var(--card-r), var(--card-g), var(--card-b), 0.08);
+            color: var(--text-primary);
+        }
+        .log-area {
+            margin-top: 16px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 12px 16px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+        .log-area.active { display: block; }
+        .log-area .log-line { padding: 2px 0; border-bottom: 1px solid var(--border-color); }
+        .log-area .log-line.parsed { color: #81c784; }
+        @media (max-width: 992px) {
+            .grid { grid-template-columns: repeat(2,1fr); gap: 16px; }
+            .dashboard { padding: 28px 24px 32px; }
+            .settings-panel { right: 20px; width: 290px; }
+        }
+        @media (max-width: 600px) {
+            .dashboard { padding: 20px; }
+            .grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+            .card .value { font-size: 28px; }
+            .header-left h1 { font-size: 20px; }
+            .header-left h1 small { font-size: 13px; }
+            .settings-panel { right: 10px; width: calc(100% - 20px); top: 70px; }
+            .settings-toggle { width: 38px; height: 38px; font-size: 16px; }
+        }
+        @media (max-width: 420px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="dashboard" id="dashboard">
+    <!-- 头部 -->
+    <header class="header">
+        <div class="header-left">
+            <div class="icon-badge"><i class="fas fa-bolt"></i></div>
+            <h1>ESP32  INA226 串口实时数据 <small>ESP32 · 无动画 V1.0 (带延时)</small></h1>
+        </div>
+        <div class="header-right">
+            <span class="status-badge">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">未连接</span>
+            </span>
+            <button class="connect-btn disconnected" id="connectBtn">
+                <i class="fas fa-plug"></i> 连接串口
+            </button>
+            <button class="settings-toggle" id="settingsToggle" aria-label="设置"><i class="fas fa-cog"></i></button>
+        </div>
+    </header>
+
+    <!-- 设置面板 -->
+    <div class="settings-panel" id="settingsPanel">
+        <button class="settings-close" id="settingsClose"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-palette"></i> 主题 & 壁纸 & 速度</h3>
+        <div class="settings-group">
+            <label>主题</label>
+            <div class="theme-options" id="themeOptions">
+                <button data-theme="light">浅色</button>
+                <button data-theme="dark" class="active">深色</button>
+                <button data-theme="system">系统</button>
+            </div>
+        </div>
+        <div class="settings-group">
+            <label>壁纸</label>
+            <div class="wallpaper-options" id="wallpaperOptions">
+                <div class="preset active" data-wallpaper="default" style="background: linear-gradient(135deg, #0b0e17, #1a2332);" title="默认深色"></div>
+                <div class="preset" data-wallpaper="light" style="background: linear-gradient(135deg, #e8ecf1, #d5dce6);" title="默认浅色"></div>
+                <div class="preset" data-wallpaper="gradient1" style="background: linear-gradient(45deg, #ff6b6b, #fecfef);" title="渐变粉"></div>
+                <div class="preset" data-wallpaper="gradient2" style="background: linear-gradient(135deg, #667eea, #764ba2);" title="渐变紫"></div>
+                <div class="preset" data-wallpaper="gradient3" style="background: linear-gradient(135deg, #f093fb, #f5576c);" title="渐变橙红"></div>
+            </div>
+            <div class="wallpaper-upload">
+                <button class="upload-btn" id="uploadWallpaperBtn"><i class="fas fa-image"></i> 上传图片</button>
+                <input type="file" id="wallpaperFileInput" accept="image/*">
+                <button class="upload-btn" id="resetWallpaperBtn" style="background:transparent;border:none;color:var(--text-muted);font-size:12px;"><i class="fas fa-undo"></i> 重置</button>
+            </div>
+        </div>
+        <div class="settings-group">
+            <label>透明度 (仪表板背景)</label>
+            <div class="opacity-slider">
+                <input type="range" id="opacitySlider" min="0.1" max="1.0" step="0.05" value="0.80">
+                <span class="opacity-value" id="opacityValue">0.80</span>
+            </div>
+        </div>
+        <div class="settings-group">
+            <label>更新速度 (节流间隔)</label>
+            <div class="speed-slider">
+                <input type="range" id="speedSlider" min="100" max="2000" step="50" value="300">
+                <span class="speed-value" id="speedValue">300 ms</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 指标卡片 -->
+    <section class="grid">
+        <article class="card card-voltage">
+            <div class="label"><i class="fas fa-bolt"></i> 总线电压</div>
+            <div class="value" id="voltageDisplay">0.00 <span class="unit">V</span></div>
+            <div class="sub-info"><i class="fas fa-microchip"></i> INA226</div>
+        </article>
+        <article class="card card-current">
+            <div class="label"><i class="fas fa-water"></i> 负载电流</div>
+            <div class="value" id="currentDisplay">0.0000 <span class="unit">A</span></div>
+            <div class="sub-info"><i class="fas fa-ruler"></i> 4位精度</div>
+        </article>
+        <article class="card card-power">
+            <div class="label"><i class="fas fa-chart-line"></i> 负载功率</div>
+            <div class="value" id="powerDisplay">0.000 <span class="unit">W</span></div>
+            <div class="sub-info"><i class="fas fa-calculator"></i> V × I</div>
+        </article>
+        <article class="card card-shunt">
+            <div class="label"><i class="fas fa-code-branch"></i> 分流电压</div>
+            <div class="value" id="shuntDisplay">0.000 <span class="unit">mV</span></div>
+            <div class="sub-info"><i class="fas fa-resistor"></i> 分流器</div>
+        </article>
+    </section>
+
+    <!-- 日志 -->
+    <div class="log-area" id="logArea"></div>
+
+    <!-- 底部 -->
+    <footer class="footer-bar">
+        <div class="left">
+            <span class="chip"><i class="fas fa-circle" style="color:#4caf50;font-size:10px;"></i> 解析中</span>
+            <span class="chip" id="packetCounter"><i class="fas fa-database"></i> 数据包 #0</span>
+        </div>
+        <div class="right">
+            <button class="action-btn" id="clearLogBtn"><i class="fas fa-eraser"></i> 清空日志</button>
+            <button class="action-btn" id="forceRefreshBtn" title="强制刷新当前显示"><i class="fas fa-sync-alt"></i> 强制刷新</button>
+            <button class="action-btn" id="disconnectBtn" style="display:none;"><i class="fas fa-times-circle"></i> 断开</button>
+        </div>
+    </footer>
+</div>
+
+<script>
+    (function() {
+        'use strict';
+
+        // ===== DOM 引用 =====
+        const voltageEl = document.getElementById('voltageDisplay');
+        const currentEl = document.getElementById('currentDisplay');
+        const powerEl = document.getElementById('powerDisplay');
+        const shuntEl = document.getElementById('shuntDisplay');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const packetCounter = document.getElementById('packetCounter');
+        const logArea = document.getElementById('logArea');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const forceRefreshBtn = document.getElementById('forceRefreshBtn');
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const settingsClose = document.getElementById('settingsClose');
+        const themeOptions = document.getElementById('themeOptions');
+        const wallpaperOptions = document.getElementById('wallpaperOptions');
+        const uploadBtn = document.getElementById('uploadWallpaperBtn');
+        const fileInput = document.getElementById('wallpaperFileInput');
+        const resetWallpaperBtn = document.getElementById('resetWallpaperBtn');
+        const opacitySlider = document.getElementById('opacitySlider');
+        const opacityValue = document.getElementById('opacityValue');
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+
+        // ===== 串口状态 =====
+        let port = null;
+        let reader = null;
+        let writer = null;
+        let keepReading = false;
+        let isConnected = false;
+        let packetCount = 0;
+        let logLines = [];
+
+        // ===== 节流控制 =====
+        let updateIntervalMs = 300;
+        let latestData = {};
+        let throttleTimer = null;
+
+        // ===== 解析正则 =====
+        const patterns = {
+            voltage: /总线电压\s*[：:]\s*([\d.]+)\s*V/i,
+            current: /负载电流\s*[：:]\s*([\d.]+)\s*A/i,
+            power: /负载功率\s*[：:]\s*([\d.]+)\s*W/i,
+            shunt: /分流电压\s*[：:]\s*([\d.]+)\s*mV/i,
+        };
+
+        // ===== 解析函数 =====
+        function parseLine(line) {
+            const result = {};
+            let matched = false;
+            for (const [key, regex] of Object.entries(patterns)) {
+                const match = line.match(regex);
+                if (match) {
+                    const val = parseFloat(match[1]);
+                    if (!isNaN(val)) {
+                        result[key] = val;
+                        matched = true;
+                    }
+                }
+            }
+            if (matched) {
+                console.log('[解析成功]', line, '→', result);
+            } else if (/电压|电流|功率|分流/.test(line)) {
+                console.warn('[解析失败] 包含关键词但未匹配:', line);
+            }
+            return result;
+        }
+
+        // ===== 实际更新 DOM（无动画） =====
+        function applyUpdate() {
+            if (Object.keys(latestData).length === 0) {
+                console.log('[applyUpdate] 无数据，跳过');
+                return;
+            }
+            console.log('[applyUpdate] 更新数据:', latestData);
+            if (latestData.voltage !== undefined) {
+                const v = latestData.voltage.toFixed(2);
+                voltageEl.innerHTML = `${v} <span class="unit">V</span>`;
+                // 不再调用 flashEl
+            }
+            if (latestData.current !== undefined) {
+                const c = latestData.current.toFixed(4);
+                currentEl.innerHTML = `${c} <span class="unit">A</span>`;
+            }
+            if (latestData.power !== undefined) {
+                const p = latestData.power.toFixed(3);
+                powerEl.innerHTML = `${p} <span class="unit">W</span>`;
+            }
+            if (latestData.shunt !== undefined) {
+                const s = latestData.shunt.toFixed(3);
+                shuntEl.innerHTML = `${s} <span class="unit">mV</span>`;
+            }
+            packetCount++;
+            packetCounter.innerHTML = `<i class="fas fa-database"></i> 数据包 #${packetCount}`;
+            latestData = {};
+        }
+
+        // ===== 节流调度 =====
+        function scheduleUpdate(newData) {
+            Object.assign(latestData, newData);
+            if (!throttleTimer) {
+                throttleTimer = setTimeout(() => {
+                    applyUpdate();
+                    throttleTimer = null;
+                }, updateIntervalMs);
+                console.log('[节流] 启动定时器，延迟', updateIntervalMs, 'ms');
+            } else {
+                console.log('[节流] 定时器已存在，合并数据');
+            }
+        }
+
+        // ===== 强制刷新 =====
+        function forceRefresh() {
+            if (throttleTimer) {
+                clearTimeout(throttleTimer);
+                throttleTimer = null;
+                console.log('[强制刷新] 清除定时器');
+            }
+            applyUpdate();
+            console.log('[强制刷新] 完成');
+        }
+
+        // ===== 日志管理 =====
+        function addLog(line, parsed = false) {
+            logLines.push({ text: line, parsed });
+            if (logLines.length > 30) logLines.shift();
+            renderLog();
+        }
+
+        function renderLog() {
+            logArea.innerHTML = logLines.map(item =>
+                `<div class="log-line${item.parsed ? ' parsed' : ''}">${escapeHtml(item.text)}</div>`
+            ).join('');
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ===== 串口读取循环 =====
+        async function readLoop() {
+            const textDecoder = new TextDecoder();
+            let buffer = '';
+            while (keepReading && reader) {
+                try {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    const chunk = textDecoder.decode(value, { stream: true });
+                    buffer += chunk;
+                    let lines = buffer.split(/\r?\n/);
+                    buffer = lines.pop() || '';
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+                        const parsed = parseLine(trimmed);
+                        const hasParsed = Object.keys(parsed).length > 0;
+                        addLog(trimmed, hasParsed);
+                        if (hasParsed) {
+                            scheduleUpdate(parsed);
+                        }
+                    }
+                } catch (err) {
+                    console.error('读取错误:', err);
+                    break;
+                }
+            }
+        }
+
+        // ===== 连接/断开 =====
+        async function connect() {
+            if (isConnected) await disconnect();
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                isConnected = true;
+                statusDot.className = 'status-dot online';
+                statusText.textContent = '已连接';
+                connectBtn.textContent = '已连接';
+                connectBtn.disabled = true;
+                disconnectBtn.style.display = 'inline-flex';
+                writer = port.writable.getWriter();
+                reader = port.readable.getReader();
+                keepReading = true;
+                readLoop();
+                logLines = [];
+                renderLog();
+                logArea.classList.add('active');
+                console.log('串口已连接');
+            } catch (err) {
+                console.error('连接失败:', err);
+                alert('无法连接串口: ' + err.message);
+                port = null;
+                isConnected = false;
+                statusDot.className = 'status-dot';
+                statusText.textContent = '未连接';
+                connectBtn.textContent = '连接串口';
+                connectBtn.disabled = false;
+                disconnectBtn.style.display = 'none';
+            }
+        }
+
+        async function disconnect() {
+            keepReading = false;
+            if (reader) { try { await reader.cancel(); } catch (e) {} reader = null; }
+            if (writer) { try { await writer.close(); } catch (e) {} writer = null; }
+            if (port) { try { await port.close(); } catch (e) {} port = null; }
+            isConnected = false;
+            statusDot.className = 'status-dot';
+            statusText.textContent = '未连接';
+            connectBtn.textContent = '连接串口';
+            connectBtn.disabled = false;
+            disconnectBtn.style.display = 'none';
+            logArea.classList.remove('active');
+            packetCount = 0;
+            packetCounter.innerHTML = `<i class="fas fa-database"></i> 数据包 #0`;
+            if (throttleTimer) {
+                clearTimeout(throttleTimer);
+                throttleTimer = null;
+            }
+            latestData = {};
+            console.log('串口已断开');
+        }
+
+        // ===== 事件绑定 =====
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        clearLogBtn.addEventListener('click', () => { logLines = []; renderLog(); });
+        forceRefreshBtn.addEventListener('click', forceRefresh);
+
+        settingsToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsPanel.classList.toggle('open');
+        });
+        settingsClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsPanel.classList.remove('open');
+        });
+        document.addEventListener('click', (e) => {
+            if (!settingsPanel.contains(e.target) && e.target !== settingsToggle) {
+                settingsPanel.classList.remove('open');
+            }
+        });
+
+        // 主题
+        document.querySelectorAll('#themeOptions button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.dataset.theme;
+                applyTheme(theme);
+            });
+        });
+
+        // 壁纸
+        document.querySelectorAll('#wallpaperOptions .preset').forEach(el => {
+            el.addEventListener('click', () => {
+                const wp = el.dataset.wallpaper;
+                setWallpaper(wp);
+                customWallpaperData = null;
+            });
+        });
+
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const dataURL = ev.target.result;
+                setCustomWallpaper(dataURL);
+            };
+            reader.readAsDataURL(file);
+            fileInput.value = '';
+        });
+        resetWallpaperBtn.addEventListener('click', resetWallpaper);
+
+        opacitySlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            setOpacity(val);
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+            updateIntervalMs = val;
+            speedValue.textContent = val + ' ms';
+            if (throttleTimer) {
+                clearTimeout(throttleTimer);
+                throttleTimer = null;
+                if (Object.keys(latestData).length > 0) {
+                    throttleTimer = setTimeout(() => {
+                        applyUpdate();
+                        throttleTimer = null;
+                    }, updateIntervalMs);
+                    console.log('[速度调节] 重置定时器，新延迟', updateIntervalMs);
+                } else {
+                    console.log('[速度调节] 无缓存数据，等待新数据');
+                }
+            } else {
+                console.log('[速度调节] 当前无定时器，新数据将使用新间隔');
+            }
+        });
+
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', () => {
+            if (currentTheme === 'system') applyTheme('system');
+        });
+
+        // ===== 主题/壁纸/透明度 =====
+        let currentTheme = 'dark';
+        let currentWallpaper = 'default';
+        let customWallpaperData = null;
+
+        function applyTheme(theme) {
+            currentTheme = theme;
+            if (theme === 'system') {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+            document.querySelectorAll('#themeOptions button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+            if (!customWallpaperData && (currentWallpaper === 'default' || currentWallpaper === 'light')) {
+                if (theme === 'light' && currentWallpaper === 'default') setWallpaper('light');
+                else if (theme === 'dark' && currentWallpaper === 'light') setWallpaper('default');
+            }
+            if (customWallpaperData) {
+                document.documentElement.style.setProperty('--bg-image', `url(${customWallpaperData})`);
+            } else {
+                setWallpaper(currentWallpaper);
+            }
+        }
+
+        function setWallpaper(wp) {
+            currentWallpaper = wp;
+            customWallpaperData = null;
+            document.querySelectorAll('#wallpaperOptions .preset').forEach(el => {
+                el.classList.toggle('active', el.dataset.wallpaper === wp);
+            });
+            let bgImage = '';
+            switch (wp) {
+                case 'default': bgImage = 'linear-gradient(135deg, #0b0e17, #1a2332)'; break;
+                case 'light': bgImage = 'linear-gradient(135deg, #e8ecf1, #d5dce6)'; break;
+                case 'gradient1': bgImage = 'linear-gradient(45deg, #ff6b6b, #fecfef)'; break;
+                case 'gradient2': bgImage = 'linear-gradient(135deg, #667eea, #764ba2)'; break;
+                case 'gradient3': bgImage = 'linear-gradient(135deg, #f093fb, #f5576c)'; break;
+                default: bgImage = 'linear-gradient(135deg, #0b0e17, #1a2332)';
+            }
+            document.documentElement.style.setProperty('--bg-image', bgImage);
+        }
+
+        function setCustomWallpaper(dataURL) {
+            customWallpaperData = dataURL;
+            document.documentElement.style.setProperty('--bg-image', `url(${dataURL})`);
+            document.querySelectorAll('#wallpaperOptions .preset').forEach(el => el.classList.remove('active'));
+        }
+
+        function resetWallpaper() {
+            customWallpaperData = null;
+            const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const defaultWp = (theme === 'dark') ? 'default' : 'light';
+            setWallpaper(defaultWp);
+        }
+
+        function setOpacity(val) {
+            const v = parseFloat(val);
+            if (isNaN(v)) return;
+            document.documentElement.style.setProperty('--dash-alpha', v);
+            opacityValue.textContent = v.toFixed(2);
+        }
+
+        // ===== 初始化 =====
+        applyTheme('dark');
+        setWallpaper('default');
+        setOpacity(0.80);
+        speedValue.textContent = speedSlider.value + ' ms';
+        updateIntervalMs = parseInt(speedSlider.value, 10);
+
+        if (!('serial' in navigator)) {
+            alert('您的浏览器不支持 Web Serial API。请使用 Chrome/Edge 87+ 或 Opera，并确保通过 HTTPS 或 localhost 访问。');
+            connectBtn.disabled = true;
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (isConnected) disconnect();
+        });
+
+        console.log('INA226 串口监控 (无动画版) 已加载');
+    })();
+</script>
+</body>
+</html>
