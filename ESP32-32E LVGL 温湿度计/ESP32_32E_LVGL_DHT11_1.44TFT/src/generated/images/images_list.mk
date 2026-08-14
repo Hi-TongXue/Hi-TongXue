@@ -1,0 +1,1 @@
+GEN_CSRCS += _bizhi1_RGB565A8_128x128.c
