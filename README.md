@@ -16,9 +16,4 @@
 - 哔哩哔哩ID：`620162563`
 - [我的B站主页](https://space.bilibili.com/620162563)
 
-## 🌱 个人寄语
-> “代码改变生活，创意点亮未来。”
 
----
-
-![Hi-TongXue's GitHub stats](https://github-readme-stats.vercel.app/api?username=Hi-TongXue&show_icons=true&theme=blueberry)
