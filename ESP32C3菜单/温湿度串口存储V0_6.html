@@ -1,0 +1,1954 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32-C3 温湿度历史记录 V0.6</title>
+<style>
+  /* ============================================================
+   *  主题变量
+   * ============================================================ */
+  :root, [data-theme="dark"]{
+    --bg:#0b1220;
+    --panel:#151f31;
+    --panel-2:#0f172a;
+    --border:#263349;
+    --border-soft:#1b2434;
+    --thead:#1b273c;
+    --row-alt:rgba(148,163,184,.05);
+    --flash:rgba(56,189,248,.20);
+    --text:#e2e8f0;
+    --text-dim:#8b9ab0;
+    --text-mute:#64748b;
+    --accent:#0ea5e9;
+    --accent-text:#38bdf8;
+    --accent-ink:#04121f;
+    --btn-bg:#26334a;
+    --btn-border:#3b4a63;
+    --btn-hover:#32415c;
+    --temp:#fb923c;
+    --humi:#22d3ee;
+    --warn:#fbbf24;
+    --ok:#22c55e;
+    --danger-bg:#3b1f26;
+    --danger-border:#7f1d1d;
+    --danger-text:#fca5a5;
+    --chart-grid:rgba(148,163,184,0.16);
+    --scroll:#334155;
+    --panel-opacity:100%;
+  }
+
+  [data-theme="light"]{
+    --bg:#eef2f7;
+    --panel:#ffffff;
+    --panel-2:#f7fafc;
+    --border:#d5dee9;
+    --border-soft:#e8eef5;
+    --thead:#eef3f9;
+    --row-alt:rgba(15,23,42,.03);
+    --flash:rgba(2,132,199,.16);
+    --text:#1e293b;
+    --text-dim:#5b6b82;
+    --text-mute:#8b98a9;
+    --accent:#0284c7;
+    --accent-text:#0369a1;
+    --accent-ink:#ffffff;
+    --btn-bg:#e6edf5;
+    --btn-border:#cfdae7;
+    --btn-hover:#dbe6f1;
+    --temp:#ea580c;
+    --humi:#0891b2;
+    --warn:#b45309;
+    --ok:#16a34a;
+    --danger-bg:#fee2e2;
+    --danger-border:#fca5a5;
+    --danger-text:#b91c1c;
+    --chart-grid:rgba(100,116,139,0.20);
+    --scroll:#c3cfdd;
+  }
+
+  [data-theme="green"]{
+    --bg:#e9f1e2;
+    --panel:#f7fbf2;
+    --panel-2:#ffffff;
+    --border:#c9dab8;
+    --border-soft:#e0ebd5;
+    --thead:#e3efd8;
+    --row-alt:rgba(60,80,40,.035);
+    --flash:rgba(77,124,15,.18);
+    --text:#2c3f22;
+    --text-dim:#5c7350;
+    --text-mute:#87977c;
+    --accent:#4d7c0f;
+    --accent-text:#3f6212;
+    --accent-ink:#ffffff;
+    --btn-bg:#e0ebd5;
+    --btn-border:#c2d6ae;
+    --btn-hover:#d3e3c4;
+    --temp:#c2410c;
+    --humi:#0e7490;
+    --warn:#a16207;
+    --ok:#15803d;
+    --danger-bg:#fde2e2;
+    --danger-border:#f5b5b5;
+    --danger-text:#b91c1c;
+    --chart-grid:rgba(77,124,15,0.18);
+    --scroll:#c2d6ae;
+  }
+
+  [data-theme="purple"]{
+    --bg:#120e1f;
+    --panel:#1c1530;
+    --panel-2:#150f26;
+    --border:#322547;
+    --border-soft:#241a38;
+    --thead:#251b3d;
+    --row-alt:rgba(255,255,255,.025);
+    --flash:rgba(168,85,247,.22);
+    --text:#eae4ff;
+    --text-dim:#a294c4;
+    --text-mute:#786a99;
+    --accent:#a855f7;
+    --accent-text:#c084fc;
+    --accent-ink:#12061f;
+    --btn-bg:#2a2042;
+    --btn-border:#3d2e5c;
+    --btn-hover:#362a52;
+    --temp:#fb7185;
+    --humi:#38bdf8;
+    --warn:#fbbf24;
+    --ok:#4ade80;
+    --danger-bg:#3b1f33;
+    --danger-border:#7f1d4d;
+    --danger-text:#fca5c7;
+    --chart-grid:rgba(168,85,247,0.20);
+    --scroll:#3d2e5c;
+  }
+
+  [data-theme="contrast"]{
+    --bg:#000000;
+    --panel:#0a0a0a;
+    --panel-2:#000000;
+    --border:#4d4d4d;
+    --border-soft:#333333;
+    --thead:#1a1a1a;
+    --row-alt:rgba(255,255,255,.07);
+    --flash:rgba(255,212,0,.28);
+    --text:#ffffff;
+    --text-dim:#d0d0d0;
+    --text-mute:#9a9a9a;
+    --accent:#ffd400;
+    --accent-text:#ffd400;
+    --accent-ink:#000000;
+    --btn-bg:#1a1a1a;
+    --btn-border:#666666;
+    --btn-hover:#2b2b2b;
+    --temp:#ff7a00;
+    --humi:#00e5ff;
+    --warn:#ffd400;
+    --ok:#00ff88;
+    --danger-bg:#3a0000;
+    --danger-border:#ff4444;
+    --danger-text:#ff8888;
+    --chart-grid:rgba(255,255,255,0.30);
+    --scroll:#555555;
+  }
+
+  /* ============================================================
+   *  基础布局
+   * ============================================================ */
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-size:14px;
+    font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    transition:background .25s ease, color .25s ease;
+    position:relative;
+  }
+
+  #bgLayer{
+    position:fixed;inset:0;z-index:0;
+    background-color:transparent;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-size:cover;
+    transition:opacity .3s ease, filter .2s ease;
+    pointer-events:none;
+  }
+  #bgMask{
+    position:fixed;inset:0;z-index:1;
+    background:#000;opacity:0;
+    pointer-events:none;
+    transition:opacity .3s ease;
+  }
+  body.has-custom-bg{background:transparent;}
+
+  .wrap{
+    max-width:1400px;margin:0 auto;padding:16px;
+    display:flex;flex-direction:column;gap:14px;height:100%;
+    position:relative;z-index:2;
+  }
+
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;}
+  h1{font-size:18px;margin:0;letter-spacing:.5px;}
+  h1 span{color:var(--accent-text);}
+  h1 em{
+    font-style:normal;font-size:11px;color:var(--text-mute);
+    border:1px solid var(--border);border-radius:6px;padding:2px 6px;
+    margin-left:6px;vertical-align:middle;
+  }
+
+  .conn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .dot{
+    width:10px;height:10px;border-radius:50%;background:var(--text-mute);
+    box-shadow:0 0 0 3px rgba(100,116,139,.2);transition:.3s;
+  }
+  .dot.on{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.25);}
+
+  .themes{
+    display:flex;gap:7px;align-items:center;
+    background:var(--panel);border:1px solid var(--border);
+    border-radius:999px;padding:4px 9px;
+    transition:background .25s ease,border-color .25s ease;
+  }
+  .theme-dot{
+    width:20px;height:20px;border-radius:50%;padding:0;cursor:pointer;
+    border:2px solid transparent;
+    background:linear-gradient(135deg,var(--dot-a),var(--dot-b));
+    transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
+  }
+  .theme-dot:hover{transform:scale(1.15);}
+  .theme-dot.active{
+    border-color:var(--text);
+    box-shadow:0 0 0 2px var(--panel),0 0 0 3px var(--accent);
+  }
+  .theme-dot[data-theme="auto"]    {--dot-a:#64748b;--dot-b:#e2e8f0;}
+  .theme-dot[data-theme="dark"]    {--dot-a:#0b1220;--dot-b:#0ea5e9;}
+  .theme-dot[data-theme="light"]   {--dot-a:#f1f5f9;--dot-b:#0284c7;}
+  .theme-dot[data-theme="green"]   {--dot-a:#e9f1e2;--dot-b:#4d7c0f;}
+  .theme-dot[data-theme="purple"]  {--dot-a:#120e1f;--dot-b:#a855f7;}
+  .theme-dot[data-theme="contrast"]{--dot-a:#000000;--dot-b:#ffd400;}
+
+  button{
+    background:var(--btn-bg);color:var(--text);border:1px solid var(--btn-border);
+    border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit;
+    transition:background .15s ease,border-color .15s ease,color .15s ease,filter .15s ease;
+  }
+  button:hover{background:var(--btn-hover);}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;}
+  button.primary:hover{filter:brightness(1.12);}
+  button.danger{background:var(--danger-bg);border-color:var(--danger-border);color:var(--danger-text);}
+  button.danger:hover{filter:brightness(1.12);}
+  button.tiny{padding:5px 9px;font-size:12px;}
+
+  input,select{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:6px 8px;font-family:inherit;font-size:13px;outline:none;
+    transition:background .25s ease,border-color .2s ease,color .25s ease;
+  }
+  input:focus,select:focus{border-color:var(--accent);}
+  input[type=number]{width:72px;}
+  input[type=range]{width:100%;accent-color:var(--accent);padding:0;background:none;border:none;}
+  input[type=color]{
+    width:42px;height:28px;padding:2px;cursor:pointer;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:7px;
+  }
+  input[type=file]{display:none;}
+
+  .grid{display:grid;grid-template-columns:330px 1fr;gap:14px;flex:1;min-height:0;}
+  .panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px;overflow:auto;
+    transition:background .25s ease,border-color .25s ease;
+  }
+  main.panel{display:flex;flex-direction:column;gap:12px;overflow:hidden;}
+
+  h2{font-size:12px;color:var(--text-dim);margin:18px 0 8px;font-weight:600;letter-spacing:1px;}
+  h2:first-child{margin-top:0;}
+  .row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;}
+  .row>span{font-size:13px;color:var(--text);}
+  .row .lbl{font-size:12px;color:var(--text-dim);min-width:34px;}
+  .row .val{font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;min-width:38px;text-align:right;}
+  .hint{font-size:12px;color:var(--text-dim);margin:6px 0;line-height:1.6;}
+  .hint b{color:var(--accent-text);font-weight:600;}
+  .warn{color:var(--warn);}
+  .ok{color:var(--ok);}
+
+  /* ★ V0.6 文件信息卡 */
+  .filecard{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 11px;margin:8px 0;font-size:12px;line-height:1.7;
+    transition:background .25s ease,border-color .25s ease;
+  }
+  .filecard .fname{
+    display:flex;align-items:center;gap:6px;
+    color:var(--accent-text);font-weight:600;word-break:break-all;margin-bottom:4px;
+  }
+  .filecard .frows{color:var(--text-dim);font-variant-numeric:tabular-nums;}
+  .filecard .frows b{color:var(--text);}
+  .filecard .seg{
+    display:inline-block;padding:1px 6px;border-radius:4px;
+    background:var(--btn-bg);color:var(--accent-text);
+    font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;
+  }
+  .filecard .cols{
+    display:inline-block;padding:1px 6px;border-radius:4px;
+    background:var(--btn-bg);color:var(--temp);font-weight:600;
+    font-size:11px;font-variant-numeric:tabular-nums;
+  }
+  .bar{
+    height:6px;border-radius:3px;background:var(--border-soft);
+    overflow:hidden;margin-top:7px;
+  }
+  .bar i{
+    display:block;height:100%;width:0;border-radius:3px;
+    background:var(--accent);transition:width .3s ease,background .3s ease;
+  }
+  .bar.warn i{background:var(--warn);}
+  .bar.full i{background:var(--danger-text);}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;}
+  .stat{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    padding:8px 10px;display:flex;flex-direction:column;gap:2px;
+    transition:background .25s ease,border-color .25s ease;
+  }
+  .stat b{font-size:15px;color:var(--accent-text);font-variant-numeric:tabular-nums;}
+  .stat span{font-size:11px;color:var(--text-dim);}
+
+  .chartbox{
+    position:relative;height:230px;flex:0 0 auto;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:6px;
+    transition:background .25s ease,border-color .25s ease;
+  }
+  canvas{width:100%;height:100%;display:block;}
+  .legend{
+    position:absolute;top:8px;right:12px;display:flex;gap:14px;
+    font-size:12px;color:var(--text-dim);pointer-events:none;
+  }
+  .legend i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px;}
+  .legend i.temp-dot{background:var(--temp);}
+  .legend i.humi-dot{background:var(--humi);}
+
+  .listhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+  .listhead h2{margin:0;}
+  .listhead .badge{
+    font-size:11px;color:var(--accent-text);background:var(--panel-2);
+    border:1px solid var(--border);border-radius:999px;padding:2px 8px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .tablebox{
+    flex:1;min-height:120px;overflow:auto;border:1px solid var(--border);
+    border-radius:10px;transition:border-color .25s ease;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    position:sticky;top:0;background:var(--thead);color:var(--text-dim);font-weight:500;
+    text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);z-index:1;
+    transition:background .25s ease;
+  }
+  tbody td{
+    padding:6px 10px;border-bottom:1px solid var(--border-soft);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+    transition:border-color .25s ease;
+  }
+  tbody tr:nth-child(even){background:var(--row-alt);}
+  tbody tr.fresh{animation:fadeIn .28s ease-out;}
+  @keyframes fadeIn{from{background:var(--flash);}to{background:transparent;}}
+  td.t{color:var(--temp);} td.h{color:var(--humi);}
+  .empty{color:var(--text-mute);text-align:center;padding:24px;}
+
+  .bg-sub{display:none;}
+  .bg-sub.show{display:block;}
+  .bg-thumb{
+    max-width:100%;max-height:90px;border-radius:8px;border:1px solid var(--border);
+    display:block;object-fit:cover;
+  }
+  .swatch-row{display:flex;align-items:center;gap:10px;margin:8px 0;}
+
+  @supports (background: color-mix(in srgb, red 50%, blue)) {
+    body.has-custom-bg .panel{
+      background:color-mix(in srgb, var(--panel) var(--panel-opacity, 100%), transparent);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
+    }
+    body.has-custom-bg .chartbox,
+    body.has-custom-bg .stat,
+    body.has-custom-bg .filecard,
+    body.has-custom-bg .themes{
+      background:color-mix(in srgb, var(--panel-2) var(--panel-opacity, 100%), transparent);
+    }
+    body.has-custom-bg thead th{
+      background:color-mix(in srgb, var(--thead) var(--panel-opacity, 100%), transparent);
+    }
+    body.has-custom-bg input,
+    body.has-custom-bg select,
+    body.has-custom-bg .listhead .badge{
+      background:color-mix(in srgb, var(--panel-2) var(--panel-opacity, 100%), transparent);
+    }
+  }
+
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{
+    background:var(--scroll);border-radius:5px;
+    border:2px solid transparent;background-clip:content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover{filter:brightness(1.2);}
+
+  @media (max-width:900px){
+    .wrap{height:auto;}
+    .grid{grid-template-columns:1fr;}
+    main.panel{height:80vh;}
+  }
+</style>
+</head>
+<body>
+
+<div id="bgLayer"></div>
+<div id="bgMask"></div>
+
+<div class="wrap">
+  <header>
+    <h1>ESP32-C3 <span>温湿度历史记录</span><em>V0.6</em></h1>
+    <div class="conn">
+      <div class="themes" id="themes" title="切换主题">
+        <button class="theme-dot" data-theme="auto"     title="跟随系统"></button>
+        <button class="theme-dot" data-theme="dark"     title="深海蓝（深色）"></button>
+        <button class="theme-dot" data-theme="light"    title="明亮白（浅色）"></button>
+        <button class="theme-dot" data-theme="green"    title="护眼绿"></button>
+        <button class="theme-dot" data-theme="purple"   title="暗夜紫"></button>
+        <button class="theme-dot" data-theme="contrast" title="高对比"></button>
+      </div>
+      <span class="dot" id="dot"></span>
+      <span id="status" style="min-width:96px;font-size:13px;color:var(--text-dim);">未连接</span>
+      <select id="baud" title="波特率">
+        <option>9600</option><option>19200</option><option>38400</option>
+        <option selected>115200</option><option>230400</option><option>460800</option><option>921600</option>
+      </select>
+      <button id="btnConnect" class="primary">连接串口</button>
+      <button id="btnMock">模拟数据</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <aside class="panel">
+      <h2>自动保存设置</h2>
+
+      <div class="row">
+        <span>保存间隔</span>
+        <input id="interval" type="number" min="0" max="60" step="1" value="5">
+        <span>分钟</span>
+      </div>
+      <input id="intervalRange" type="range" min="0" max="60" step="1" value="5">
+      <p class="hint">范围 <b>0 ~ 60</b> 分钟，<b>0</b> = 关闭自动保存</p>
+
+      <div class="row"><span>文件名</span></div>
+      <div class="row">
+        <input id="fname" type="text" value="温湿度记录.csv" style="flex:1;min-width:0;">
+      </div>
+
+      <div class="row">
+        <button id="btnFolder">选择保存位置</button>
+        <button id="btnSaveNow" class="primary">立即保存</button>
+      </div>
+      <p class="hint">保存目录：<b id="folderName">未选择</b></p>
+
+      <!-- ★ V0.6 文件信息卡 -->
+      <div class="filecard" id="fileCard">
+        <div class="fname">
+          <span id="fileIcon">📄</span>
+          <span id="fileInfoName">--</span>
+        </div>
+        <div class="frows" id="fileInfoRows">未选择保存目录</div>
+        <div class="bar" id="fileBar"><i></i></div>
+      </div>
+
+      <p class="hint">
+        <b>单文件多列存储</b>：数据先从上到下写满 <b>1,048,576</b> 行
+        （<span class="cols">A-D</span> 列），
+        然后自动从第 1 行开始，向右侧 <span class="cols">E-H</span> 列继续写，
+        依次类推，一个 CSV 文件最多可存 <b>约 43 亿</b> 条记录，
+        不会因超出 Excel 行数限制而需要分文件。
+      </p>
+
+      <div class="row">
+        <button id="btnExportAll">导出全部记录</button>
+        <button id="btnClear" class="danger">清空</button>
+      </div>
+
+      <p class="hint" id="autoState">自动保存：已关闭</p>
+      <p class="hint" id="lastSave">上次保存：--</p>
+
+      <h2>数据统计</h2>
+      <div class="stats" id="stats"></div>
+
+      <h2>主题</h2>
+      <p class="hint">当前主题：<b id="themeName">深海蓝（深色）</b></p>
+      <p class="hint">点击右上角圆点即可切换，设置会保存在本地。</p>
+
+      <h2>背景</h2>
+
+      <div class="row">
+        <span>类型</span>
+        <select id="bgType" style="flex:1;min-width:0;">
+          <option value="none">默认（跟随主题）</option>
+          <option value="solid">纯色</option>
+          <option value="gradient">渐变</option>
+          <option value="image">图片</option>
+        </select>
+      </div>
+
+      <div class="bg-sub" id="bgSolidRow">
+        <div class="swatch-row">
+          <span class="lbl">颜色</span>
+          <input type="color" id="bgSolidColor" value="#0b1220">
+          <button class="tiny" id="btnSolidFromTheme">取主题色</button>
+        </div>
+      </div>
+
+      <div class="bg-sub" id="bgGradRow">
+        <div class="swatch-row">
+          <span class="lbl">起色</span>
+          <input type="color" id="bgGrad1" value="#0b1220">
+          <span class="lbl">终色</span>
+          <input type="color" id="bgGrad2" value="#1e3a5f">
+        </div>
+        <div class="row">
+          <span class="lbl">角度</span>
+          <input type="range" id="bgGradAngle" min="0" max="360" step="5" value="135" style="flex:1;">
+          <span class="val" id="bgGradAngleVal">135°</span>
+        </div>
+      </div>
+
+      <div class="bg-sub" id="bgImgRow">
+        <div class="row">
+          <button id="btnPickBg">选择图片</button>
+          <button id="btnClearBg" class="tiny">移除图片</button>
+        </div>
+        <input type="file" id="bgFileInput" accept="image/*">
+        <div class="row">
+          <img id="bgPreview" class="bg-thumb" alt="背景预览" style="display:none;">
+        </div>
+        <div class="row">
+          <span class="lbl">模糊</span>
+          <input type="range" id="bgBlur" min="0" max="24" step="1" value="0" style="flex:1;">
+          <span class="val" id="bgBlurVal">0px</span>
+        </div>
+        <div class="row">
+          <span class="lbl">暗化</span>
+          <input type="range" id="bgDim" min="0" max="90" step="1" value="35" style="flex:1;">
+          <span class="val" id="bgDimVal">35%</span>
+        </div>
+        <div class="row">
+          <span class="lbl">填充</span>
+          <select id="bgFit" style="flex:1;min-width:0;">
+            <option value="cover">覆盖</option>
+            <option value="contain">包含</option>
+            <option value="repeat">平铺</option>
+          </select>
+        </div>
+        <p class="hint">建议图片 <b>≤ 2MB</b>，过大会占用较多本地存储空间。</p>
+      </div>
+
+      <div class="row">
+        <span class="lbl">面板不透明</span>
+        <input type="range" id="panelOpacity" min="30" max="100" step="1" value="100" style="flex:1;">
+        <span class="val" id="panelOpacityVal">100%</span>
+      </div>
+      <p class="hint">数值越小，背景越透出（仅在自定义背景时生效）。</p>
+
+      <div class="row">
+        <button id="btnResetBg" class="tiny">重置背景设置</button>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <div class="chartbox">
+        <canvas id="chart"></canvas>
+        <div class="legend">
+          <span><i class="temp-dot"></i>温度 ℃</span>
+          <span><i class="humi-dot"></i>湿度 %</span>
+        </div>
+      </div>
+
+      <div class="listhead">
+        <h2>实时列表</h2>
+        <span class="badge" id="listBadge">0 / 12</span>
+      </div>
+      <div class="tablebox">
+        <table>
+          <thead>
+            <tr><th style="width:60px;">#</th><th style="width:180px;">时间</th>
+                <th style="width:100px;">传感器</th><th style="width:100px;">温度(℃)</th>
+                <th style="width:100px;">湿度(%)</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="5" class="empty">等待串口数据…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+ *  V0.6 更新说明
+ *  ------------------------------------------------------------
+ *  [修复] 不再拆分成多个 CSV 文件
+ *         采用"单文件多列段"存储：
+ *           第 1 段使用 A-D 列，写满 1,048,576 行后，
+ *           第 2 段从第 1 行开始使用 E-H 列，
+ *           第 3 段使用 I-L 列，依次类推。
+ *         一个文件可容纳约 43 亿条记录，
+ *         完全避开 Excel 的 1,048,576 行限制。
+ *  [新增] 文件信息卡显示当前段号、列范围、已写行数进度条
+ *  [新增] 选择目录/恢复目录时自动扫描已有文件，
+ *         判断当前应写入哪一段哪一行，接续保存不重复
+ *  [新增] 达到 1M 行后自动切换到下一列段
+ *  [保留] V0.5 之前全部功能（主题/背景/循环列表/防卡死）
+ * ============================================================ */
+
+/* ---------------- 元素引用 ---------------- */
+const $ = id => document.getElementById(id);
+const dotEl      = $('dot');
+const statusEl   = $('status');
+const baudEl     = $('baud');
+const btnConnect = $('btnConnect');
+const btnMock    = $('btnMock');
+const intervalEl = $('interval');
+const rangeEl    = $('intervalRange');
+const fnameEl    = $('fname');
+const btnFolder  = $('btnFolder');
+const btnSaveNow = $('btnSaveNow');
+const btnExportAll = $('btnExportAll');
+const btnClear   = $('btnClear');
+const folderNameEl = $('folderName');
+const autoStateEl  = $('autoState');
+const lastSaveEl   = $('lastSave');
+const statsEl    = $('stats');
+const tbodyEl    = $('tbody');
+const listBadgeEl = $('listBadge');
+const canvas     = $('chart');
+const themesEl   = $('themes');
+const themeNameEl = $('themeName');
+
+/* 文件信息 */
+const fileIcon     = $('fileIcon');
+const fileInfoName = $('fileInfoName');
+const fileInfoRows = $('fileInfoRows');
+const fileBar      = $('fileBar');
+const fileBarFill  = fileBar.querySelector('i');
+
+/* 背景相关元素 */
+const bgLayer      = $('bgLayer');
+const bgMask       = $('bgMask');
+const bgTypeEl     = $('bgType');
+const bgSolidRow   = $('bgSolidRow');
+const bgGradRow    = $('bgGradRow');
+const bgImgRow     = $('bgImgRow');
+const bgSolidColor = $('bgSolidColor');
+const bgGrad1      = $('bgGrad1');
+const bgGrad2      = $('bgGrad2');
+const bgGradAngle  = $('bgGradAngle');
+const bgGradAngleVal = $('bgGradAngleVal');
+const bgBlur       = $('bgBlur');
+const bgBlurVal    = $('bgBlurVal');
+const bgDim        = $('bgDim');
+const bgDimVal     = $('bgDimVal');
+const bgFit        = $('bgFit');
+const bgFileInput  = $('bgFileInput');
+const btnPickBg    = $('btnPickBg');
+const btnClearBg   = $('btnClearBg');
+const bgPreview    = $('bgPreview');
+const panelOpacity = $('panelOpacity');
+const panelOpacityVal = $('panelOpacityVal');
+const btnResetBg   = $('btnResetBg');
+const btnSolidFromTheme = $('btnSolidFromTheme');
+
+/* ---------------- 全局状态 ---------------- */
+const MAX_LIVE_ROWS = 12;
+const MAX_RECORDS   = 2500000;   // 内存上限（约 2.5M 条，可覆盖前 2 个数据段）
+
+const records = [];
+let savedIndex = 0;      // 已写入文件的记录数
+let dirHandle  = null;
+let nextSaveAt = 0;
+let saving     = false;
+
+/* ============================================================
+ *  ★ V0.6 单文件多列段存储
+ *  ------------------------------------------------------------
+ *  Excel 硬上限：1,048,576 行 × 16,384 列
+ *  每段 4 列（时间 / 传感器 / 温度 / 湿度）
+ *  最多 16,384 / 4 = 4096 段 ≈ 43 亿条数据
+ * ============================================================ */
+const EXCEL_MAX_ROWS = 1048576;        // 单段行数上限
+const COLS_PER_SEG   = 4;              // 每段 4 列
+const MAX_SEGMENTS   = 4096;           // 列上限换算出的最大段数
+
+/** 数字 → Excel 列名（1 → A, 27 → AA） */
+function colLetter(n) {
+  let s = '';
+  while (n > 0) {
+    n--;
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26);
+  }
+  return s;
+}
+
+/** 第 seg 段（0-based）对应的列范围字符串 */
+function segColRange(seg) {
+  const start = seg * COLS_PER_SEG + 1;
+  const end = start + COLS_PER_SEG - 1;
+  return `${colLetter(start)}-${colLetter(end)}`;
+}
+
+/** 根据已保存记录数推算下次写入位置 */
+function nextWritePos(savedCount) {
+  const idx = savedCount;   // 0-based
+  const seg = Math.floor(idx / EXCEL_MAX_ROWS);
+  const row = idx % EXCEL_MAX_ROWS;
+  return { seg, row };
+}
+
+/** 基础文件名（自动补 .csv） */
+function getFileName() {
+  let n = (fnameEl.value || '').trim() || '温湿度记录';
+  n = n.replace(/[\\/:*?"<>|]/g, '_');
+  if (!/\.csv$/i.test(n)) n += '.csv';
+  return n;
+}
+
+/* ============================================================
+ *  ★ 文件信息卡
+ * ============================================================ */
+function updateFileInfo() {
+  if (!dirHandle) {
+    fileIcon.textContent = '📄';
+    fileInfoName.textContent = '--';
+    fileInfoRows.textContent = '未选择保存目录';
+    fileBarFill.style.width = '0%';
+    fileBar.className = 'bar';
+    return;
+  }
+
+  fileIcon.textContent = '📄';
+  fileInfoName.textContent = getFileName();
+
+  const total = savedIndex;
+  if (total === 0) {
+    fileInfoRows.innerHTML =
+      `尚未写入数据<br>下一段：<span class="seg">第 1 段</span> <span class="cols">A-D</span> 列`;
+    fileBarFill.style.width = '0%';
+    fileBar.className = 'bar';
+    return;
+  }
+
+  const pos = nextWritePos(total);
+  const seg = pos.seg;
+  const row = pos.row;
+  const pct = (row / EXCEL_MAX_ROWS) * 100;
+  const colRange = segColRange(seg);
+
+  const segNote = seg > 0
+    ? `（已用 ${seg} 段，共 ${seg * EXCEL_MAX_ROWS + row} 条数据）`
+    : '';
+
+  fileInfoRows.innerHTML =
+    `当前段：<span class="seg">第 ${seg + 1} 段</span> ` +
+    `<span class="cols">${colRange}</span> 列<br>` +
+    `已写 <b>${row.toLocaleString()}</b> / ${EXCEL_MAX_ROWS.toLocaleString()} 行 ` +
+    `<span style="opacity:.65">(${pct.toFixed(2)}%)</span> ` +
+    (segNote ? `<br><span style="opacity:.65">${segNote}</span>` : '');
+
+  fileBarFill.style.width = Math.min(100, pct) + '%';
+  fileBar.className = 'bar' + (pct >= 99 ? ' full' : (pct >= 80 ? ' warn' : ''));
+}
+
+/* ============================================================
+ *  ★ 扫描已有文件 —— 恢复记录并推算写入位置
+ * ============================================================ */
+function parseTimeStr(s) {
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  if (!m) return new Date();
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+}
+
+async function scanExistingFile() {
+  if (!dirHandle) { updateFileInfo(); return; }
+
+  try {
+    const fh = await dirHandle.getFileHandle(getFileName(), { create: true });
+    const file = await fh.getFile();
+
+    if (file.size === 0) {
+      savedIndex = 0;
+      updateFileInfo();
+      return;
+    }
+
+    // 超大文件保护：> 300MB 时仅按段/行位置推算，不恢复内容
+    if (file.size > 300 * 1024 * 1024) {
+      console.warn('文件过大（>300MB），跳过内容恢复');
+      savedIndex = 0;
+      updateFileInfo();
+      return;
+    }
+
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+    if (lines.length <= 1) {
+      savedIndex = 0;
+      updateFileInfo();
+      return;
+    }
+
+    // 解析表头，判定有几段
+    const headerCells = lines[0].replace(/^\uFEFF/, '').split(',');
+    const segments = Math.max(1, Math.floor(headerCells.length / COLS_PER_SEG));
+
+    // 每段一个数组，按行顺序收集
+    const bySeg = [];
+    for (let s = 0; s < segments; s++) bySeg[s] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cells = lines[i].split(',');
+      for (let s = 0; s < segments; s++) {
+        const base = s * COLS_PER_SEG;
+        const tstr = (cells[base] || '').trim();
+        if (!tstr) continue;
+
+        const temp = parseFloat(cells[base + 2]);
+        const humi = parseFloat(cells[base + 3]);
+        if (isNaN(temp) || isNaN(humi)) continue;
+
+        bySeg[s].push({
+          time: parseTimeStr(tstr),
+          sensor: (cells[base + 1] || '').trim() || 'DHT11',
+          temp,
+          humi
+        });
+      }
+    }
+
+    // 合并回 records（按段序 → 段内行序）
+    records.length = 0;
+    for (let s = 0; s < segments; s++) {
+      for (const rec of bySeg[s]) {
+        rec.no = records.length + 1;
+        records.push(rec);
+      }
+    }
+
+    savedIndex = records.length;
+
+    rebuildTable();
+    updateStats();
+    updateListBadge();
+    updateFileInfo();
+    scheduleChart();
+  } catch (e) {
+    console.warn('扫描文件失败：', e);
+    savedIndex = 0;
+    updateFileInfo();
+  }
+}
+
+/* ============================================================
+ *  ★ 追加写入 —— 全部数据都在第 1 段时使用（快速路径）
+ * ============================================================ */
+async function appendRows(rows) {
+  const fh = await dirHandle.getFileHandle(getFileName(), { create: true });
+  const file = await fh.getFile();
+  const size = file.size;
+
+  const writer = await fh.createWritable({ keepExistingData: true });
+  try {
+    await writer.seek(size);
+    let text = '';
+    if (size === 0) text += '\uFEFF' + CSV_HEADER + '\r\n';
+    for (const r of rows) text += csvLine(r) + '\r\n';
+    await writer.write(text);
+  } finally {
+    await writer.close();
+  }
+}
+
+/* ============================================================
+ *  ★ 全量重写 —— 跨越第 1 段后使用，生成多列段结构
+ *  ------------------------------------------------------------
+ *  结构示例（第 1 段已满，正在写第 2 段）：
+ *    时间,传感器,温度,湿度, 时间,传感器,温度,湿度
+ *    t1,s1,20.0,50.0,      tA,sA,21.0,51.0
+ *    t2,s2,20.1,50.1,      tB,sB,21.1,51.1
+ *    …
+ * ============================================================ */
+async function writeFullFile() {
+  const n = records.length;
+  const segments = Math.max(1, Math.min(MAX_SEGMENTS, Math.ceil(n / EXCEL_MAX_ROWS)));
+
+  // 表头
+  const headerCells = new Array(segments * COLS_PER_SEG);
+  for (let s = 0; s < segments; s++) {
+    const base = s * COLS_PER_SEG;
+    headerCells[base]     = '时间';
+    headerCells[base + 1] = '传感器';
+    headerCells[base + 2] = '温度(℃)';
+    headerCells[base + 3] = '湿度(%)';
+  }
+  const lines = [headerCells.join(',')];
+
+  // 数据行
+  const rowsNeeded = Math.min(EXCEL_MAX_ROWS, n);
+  for (let r = 0; r < rowsNeeded; r++) {
+    const cells = new Array(segments * COLS_PER_SEG);
+    for (let s = 0; s < segments; s++) {
+      const idx = s * EXCEL_MAX_ROWS + r;
+      const base = s * COLS_PER_SEG;
+      if (idx < n) {
+        const rec = records[idx];
+        cells[base]     = fmtTime(rec.time);
+        cells[base + 1] = rec.sensor;
+        cells[base + 2] = rec.temp.toFixed(1);
+        cells[base + 3] = rec.humi.toFixed(1);
+      } else {
+        cells[base] = '';
+        cells[base + 1] = '';
+        cells[base + 2] = '';
+        cells[base + 3] = '';
+      }
+    }
+    lines.push(cells.join(','));
+  }
+
+  const text = '\uFEFF' + lines.join('\r\n') + '\r\n';
+
+  const fh = await dirHandle.getFileHandle(getFileName(), { create: true });
+  const writer = await fh.createWritable();
+  try {
+    await writer.write(text);
+  } finally {
+    await writer.close();
+  }
+}
+
+/* ============================================================
+ *  ★ 保存主流程
+ *  ------------------------------------------------------------
+ *  快速路径：数据总量仍在第 1 段内 → 直接追加
+ *  慢速路径：跨越第 1 段 → 全量重写（多列结构）
+ * ============================================================ */
+async function doSave(silent) {
+  if (!dirHandle) {
+    if (!silent) alert('请先点击“选择保存位置”选定文件夹。');
+    return;
+  }
+  if (saving) return;
+
+  const totalCount = records.length;
+  if (totalCount === 0) {
+    if (!silent) lastSaveEl.textContent = '没有数据可保存。';
+    return;
+  }
+
+  saving = true;
+  const before = savedIndex;
+
+  try {
+    // 权限校验
+    let perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await dirHandle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') throw new Error('目录写入权限未授予');
+
+    const inFirstSeg = totalCount <= EXCEL_MAX_ROWS;
+
+    if (inFirstSeg) {
+      // —— 快速路径：仍全部在第 1 段内 ——
+      const newRows = records.slice(savedIndex);
+      if (newRows.length) {
+        await appendRows(newRows);
+      }
+    } else {
+      // —— 慢速路径：已经跨越第 1 段，必须重写整个文件 ——
+      await writeFullFile();
+    }
+
+    savedIndex = totalCount;
+    updateFileInfo();
+
+    const now = fmtTime(new Date());
+    const delta = totalCount - before;
+    const pos = nextWritePos(totalCount);
+
+    if (delta > 0) {
+      lastSaveEl.innerHTML =
+        `上次保存：${now}（新增 ${delta.toLocaleString()} 条 / 共 ${totalCount.toLocaleString()} 条）<br>` +
+        `下一写入位置：<b>第 ${pos.seg + 1} 段</b> <span class="cols">${segColRange(pos.seg)}</span> 列` +
+        `（第 ${(pos.row + 1).toLocaleString()} 行）`;
+    } else {
+      lastSaveEl.textContent = `上次保存：${now}（无新增）`;
+    }
+  } catch (e) {
+    console.error(e);
+    // 出错也记录已成功写入的部分（快速路径下）
+    if (totalCount <= EXCEL_MAX_ROWS && savedIndex < before) savedIndex = before;
+    lastSaveEl.innerHTML =
+      `<span class="warn">保存失败：${e.message}</span>`;
+  } finally {
+    saving = false;
+  }
+}
+
+/* ============================================================
+ *  导出全部记录 —— 单文件多列结构
+ * ============================================================ */
+function exportAll() {
+  if (!records.length) { alert('暂无数据可导出。'); return; }
+
+  const n = records.length;
+  const segments = Math.max(1, Math.min(MAX_SEGMENTS, Math.ceil(n / EXCEL_MAX_ROWS)));
+
+  if (segments > 4096) {
+    alert('数据量超出单文件列上限，无法导出为单个 CSV。');
+    return;
+  }
+
+  const headerCells = new Array(segments * COLS_PER_SEG);
+  for (let s = 0; s < segments; s++) {
+    const base = s * COLS_PER_SEG;
+    headerCells[base]     = '时间';
+    headerCells[base + 1] = '传感器';
+    headerCells[base + 2] = '温度(℃)';
+    headerCells[base + 3] = '湿度(%)';
+  }
+
+  const lines = [headerCells.join(',')];
+  const rowsNeeded = Math.min(EXCEL_MAX_ROWS, n);
+
+  for (let r = 0; r < rowsNeeded; r++) {
+    const cells = new Array(segments * COLS_PER_SEG);
+    for (let s = 0; s < segments; s++) {
+      const idx = s * EXCEL_MAX_ROWS + r;
+      const base = s * COLS_PER_SEG;
+      if (idx < n) {
+        const rec = records[idx];
+        cells[base]     = fmtTime(rec.time);
+        cells[base + 1] = rec.sensor;
+        cells[base + 2] = rec.temp.toFixed(1);
+        cells[base + 3] = rec.humi.toFixed(1);
+      } else {
+        cells[base] = '';
+        cells[base + 1] = '';
+        cells[base + 2] = '';
+        cells[base + 3] = '';
+      }
+    }
+    lines.push(cells.join(','));
+  }
+
+  const text = '\uFEFF' + lines.join('\r\n') + '\r\n';
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = getFileName().replace(/\.csv$/i, '') + '_' + stamp() + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+
+  const segNote = segments > 1 ? `（${segments} 个数据段）` : '';
+  lastSaveEl.textContent = `已导出 ${n.toLocaleString()} 条记录${segNote}`;
+}
+
+/* ============================================================
+ *  背景系统（V0.4）
+ * ============================================================ */
+const BG_KEY = 'esp32_bg';
+
+const BG_DEFAULTS = {
+  type: 'none',
+  solid: '#0b1220',
+  grad1: '#0b1220',
+  grad2: '#1e3a5f',
+  gradAngle: 135,
+  image: null,
+  blur: 0,
+  dim: 35,
+  fit: 'cover',
+  panelOpacity: 100
+};
+const bgSettings = Object.assign({}, BG_DEFAULTS);
+
+function applyBg(persist) {
+  const b = bgSettings;
+
+  bgLayer.style.filter = 'none';
+  bgLayer.style.backgroundImage = 'none';
+  bgLayer.style.backgroundRepeat = 'no-repeat';
+  bgLayer.style.backgroundSize = 'cover';
+
+  if (b.type === 'none') {
+    document.body.classList.remove('has-custom-bg');
+    bgLayer.style.backgroundColor = 'transparent';
+    bgMask.style.opacity = 0;
+  } else {
+    document.body.classList.add('has-custom-bg');
+    bgMask.style.opacity = (b.dim / 100).toFixed(2);
+
+    if (b.type === 'solid') {
+      bgLayer.style.backgroundColor = b.solid || '#000';
+    } else if (b.type === 'gradient') {
+      bgLayer.style.backgroundColor = 'transparent';
+      bgLayer.style.backgroundImage =
+        `linear-gradient(${Number(b.gradAngle) || 0}deg, ${b.grad1 || '#000'}, ${b.grad2 || '#111'})`;
+    } else if (b.type === 'image' && b.image) {
+      bgLayer.style.backgroundColor = 'transparent';
+      bgLayer.style.backgroundImage = `url("${b.image}")`;
+      if (b.fit === 'repeat') {
+        bgLayer.style.backgroundSize = 'auto';
+        bgLayer.style.backgroundRepeat = 'repeat';
+      } else {
+        bgLayer.style.backgroundSize = b.fit === 'contain' ? 'contain' : 'cover';
+        bgLayer.style.backgroundRepeat = 'no-repeat';
+      }
+    } else {
+      document.body.classList.remove('has-custom-bg');
+      bgLayer.style.backgroundColor = 'transparent';
+      bgMask.style.opacity = 0;
+    }
+
+    if (b.blur > 0) bgLayer.style.filter = `blur(${b.blur}px)`;
+  }
+
+  document.documentElement.style.setProperty(
+    '--panel-opacity',
+    Math.max(0, Math.min(100, Number(b.panelOpacity) || 100)) + '%'
+  );
+
+  syncBgUI();
+  if (persist !== false) persistBg();
+}
+
+function syncBgUI() {
+  const b = bgSettings;
+
+  bgTypeEl.value = b.type;
+  bgSolidColor.value = normHex(b.solid);
+  bgGrad1.value = normHex(b.grad1);
+  bgGrad2.value = normHex(b.grad2);
+  bgGradAngle.value = b.gradAngle;
+  bgGradAngleVal.textContent = b.gradAngle + '°';
+  bgBlur.value = b.blur;
+  bgBlurVal.textContent = b.blur + 'px';
+  bgDim.value = b.dim;
+  bgDimVal.textContent = b.dim + '%';
+  bgFit.value = b.fit;
+  panelOpacity.value = b.panelOpacity;
+  panelOpacityVal.textContent = b.panelOpacity + '%';
+
+  bgSolidRow.classList.toggle('show', b.type === 'solid');
+  bgGradRow.classList.toggle('show', b.type === 'gradient');
+  bgImgRow.classList.toggle('show', b.type === 'image');
+
+  if (bgPreview.dataset.loaded !== (b.image || '')) {
+    bgPreview.dataset.loaded = b.image || '';
+    if (b.image) {
+      bgPreview.src = b.image;
+      bgPreview.style.display = 'block';
+    } else {
+      bgPreview.removeAttribute('src');
+      bgPreview.style.display = 'none';
+    }
+  }
+}
+
+function normHex(v) {
+  if (typeof v !== 'string') return '#000000';
+  let s = v.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(s)) {
+    return ('#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]).toLowerCase();
+  }
+  return '#000000';
+}
+
+async function persistBg() {
+  try {
+    await idbSet(BG_KEY, JSON.parse(JSON.stringify(bgSettings)));
+  } catch (e) {
+    console.warn('背景设置保存失败：', e);
+  }
+}
+
+async function loadBg() {
+  try {
+    const s = await idbGet(BG_KEY);
+    if (s && typeof s === 'object') {
+      Object.assign(bgSettings, BG_DEFAULTS, s);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+bgTypeEl.addEventListener('change', () => { bgSettings.type = bgTypeEl.value; applyBg(true); });
+bgSolidColor.addEventListener('input', () => { bgSettings.solid = bgSolidColor.value; applyBg(true); });
+btnSolidFromTheme.addEventListener('click', () => {
+  const cs = getComputedStyle(document.documentElement);
+  const bg = (cs.getPropertyValue('--bg') || '').trim();
+  if (bg) {
+    bgSettings.solid = normHex(bg);
+    bgSolidColor.value = bgSettings.solid;
+    applyBg(true);
+  }
+});
+bgGrad1.addEventListener('input', () => { bgSettings.grad1 = bgGrad1.value; applyBg(true); });
+bgGrad2.addEventListener('input', () => { bgSettings.grad2 = bgGrad2.value; applyBg(true); });
+bgGradAngle.addEventListener('input', () => {
+  bgSettings.gradAngle = parseInt(bgGradAngle.value, 10) || 0;
+  applyBg(true);
+});
+bgBlur.addEventListener('input', () => { bgSettings.blur = parseInt(bgBlur.value, 10) || 0; applyBg(true); });
+bgDim.addEventListener('input', () => { bgSettings.dim = parseInt(bgDim.value, 10) || 0; applyBg(true); });
+bgFit.addEventListener('change', () => { bgSettings.fit = bgFit.value; applyBg(true); });
+btnPickBg.addEventListener('click', () => bgFileInput.click());
+bgFileInput.addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  bgFileInput.value = '';
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { alert('请选择图片文件。'); return; }
+  if (file.size > 2 * 1024 * 1024) { alert('图片不能超过 2MB。'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    bgSettings.image = reader.result;
+    if (bgSettings.type !== 'image') bgSettings.type = 'image';
+    applyBg(true);
+  };
+  reader.readAsDataURL(file);
+});
+btnClearBg.addEventListener('click', () => { bgSettings.image = null; applyBg(true); });
+panelOpacity.addEventListener('input', () => {
+  bgSettings.panelOpacity = parseInt(panelOpacity.value, 10) || 100;
+  applyBg(true);
+});
+btnResetBg.addEventListener('click', () => {
+  if (!confirm('确定恢复背景的默认设置吗？')) return;
+  Object.assign(bgSettings, BG_DEFAULTS);
+  applyBg(true);
+});
+
+/* ============================================================
+ *  主题系统（V0.3）
+ * ============================================================ */
+const THEME_KEY = 'esp32_theme';
+const THEME_NAMES = {
+  auto:     '跟随系统',
+  dark:     '深海蓝（深色）',
+  light:    '明亮白（浅色）',
+  green:    '护眼绿',
+  purple:   '暗夜紫',
+  contrast: '高对比'
+};
+const THEME_LIST = Object.keys(THEME_NAMES);
+
+let themeChoice = 'dark';
+let themeColors = {
+  grid: 'rgba(148,163,184,0.16)',
+  axis: '#64748b',
+  temp: '#fb923c',
+  humi: '#22d3ee'
+};
+
+const mql = window.matchMedia('(prefers-color-scheme: light)');
+
+function resolveTheme(name) {
+  if (name === 'auto') return mql.matches ? 'light' : 'dark';
+  return name;
+}
+
+function readThemeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const g = k => (cs.getPropertyValue(k) || '').trim();
+  themeColors = {
+    grid: g('--chart-grid') || 'rgba(148,163,184,0.16)',
+    axis: g('--text-mute')  || '#64748b',
+    temp: g('--temp')       || '#fb923c',
+    humi: g('--humi')       || '#22d3ee'
+  };
+}
+
+function applyTheme(name, persist) {
+  if (!THEME_LIST.includes(name)) name = 'dark';
+  themeChoice = name;
+
+  const real = resolveTheme(name);
+  document.documentElement.setAttribute('data-theme', real);
+
+  themesEl.querySelectorAll('.theme-dot').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === name);
+  });
+
+  themeNameEl.textContent = THEME_NAMES[name] +
+    (name === 'auto' ? `（当前：${real === 'light' ? '浅色' : '深色'}）` : '');
+
+  readThemeColors();
+  scheduleChart();
+
+  if (persist !== false) {
+    try { localStorage.setItem(THEME_KEY, name); } catch (e) {}
+  }
+}
+
+themesEl.addEventListener('click', e => {
+  const btn = e.target.closest('.theme-dot');
+  if (!btn) return;
+  applyTheme(btn.dataset.theme, true);
+});
+
+function onSchemeChange() {
+  if (themeChoice === 'auto') applyTheme('auto', false);
+}
+if (mql.addEventListener) mql.addEventListener('change', onSchemeChange);
+else if (mql.addListener) mql.addListener(onSchemeChange);
+
+/* ---------------- 小工具 ---------------- */
+const pad2 = n => String(n).padStart(2, '0');
+
+function fmtTime(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ` +
+         `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+function fmtHMS(d) {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+function stamp() {
+  const d = new Date();
+  return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}_` +
+         `${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
+
+/* ============================================================
+ *  IndexedDB
+ * ============================================================ */
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('esp32_th_log', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbSet(key, val) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('kv', 'readonly');
+    const rq = tx.objectStore('kv').get(key);
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+}
+
+/* ============================================================
+ *  串口通信
+ * ============================================================ */
+let port = null;
+let reader = null;
+let reading = false;
+let readSeq = 0;
+
+function setStatus(text, on) {
+  statusEl.textContent = text;
+  dotEl.classList.toggle('on', !!on);
+}
+
+async function connect() {
+  if (!('serial' in navigator)) {
+    alert('当前浏览器不支持 Web Serial API。\n\n请使用桌面版 Chrome / Edge（89+）打开本页面，\n并确保通过 https 或 localhost 访问。');
+    return;
+  }
+  if (port) { await disconnect(); return; }
+
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: parseInt(baudEl.value, 10) });
+    reading = true;
+    const seq = ++readSeq;
+    setStatus('已连接 ' + baudEl.value, true);
+    btnConnect.textContent = '断开串口';
+    btnConnect.classList.remove('primary');
+    readLoop(seq);
+  } catch (err) {
+    console.error(err);
+    port = null;
+    if (err.name !== 'NotFoundError') alert('打开串口失败：' + err.message);
+  }
+}
+
+async function disconnect() {
+  reading = false;
+  readSeq++;
+  const r = reader; reader = null;
+  try { if (r) await r.cancel(); } catch (e) {}
+  const p = port; port = null;
+  try { if (p) await p.close(); } catch (e) {}
+  setStatus('未连接', false);
+  btnConnect.textContent = '连接串口';
+  btnConnect.classList.add('primary');
+}
+
+async function readLoop(seq) {
+  const decoder = new TextDecoder('utf-8');
+  let buf = '';
+
+  try {
+    while (reading && seq === readSeq && port && port.readable) {
+      let localReader = null;
+      try {
+        localReader = port.readable.getReader();
+        reader = localReader;
+
+        while (reading && seq === readSeq) {
+          const { value, done } = await localReader.read();
+          if (done) break;
+          if (!value || !value.length) continue;
+
+          buf += decoder.decode(value, { stream: true });
+
+          let idx;
+          while ((idx = buf.indexOf('\n')) >= 0) {
+            handleLine(buf.slice(0, idx));
+            buf = buf.slice(idx + 1);
+          }
+          if (buf.length > 8192) buf = buf.slice(-1024);
+        }
+      } catch (e) {
+        if (reading && seq === readSeq) {
+          console.warn('串口读取异常：', e);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      } finally {
+        try { if (localReader) localReader.releaseLock(); } catch (e) {}
+        if (reader === localReader) reader = null;
+      }
+      break;
+    }
+  } finally {
+    if (seq === readSeq) {
+      if (reading) reading = false;
+      if (port) {
+        const p = port; port = null;
+        try { await p.close(); } catch (e) {}
+      }
+      setStatus('未连接', false);
+      btnConnect.textContent = '连接串口';
+      btnConnect.classList.add('primary');
+    }
+  }
+}
+
+/* ============================================================
+ *  串口数据解析
+ * ============================================================ */
+let cur = null;
+let expect = null;
+let curSensor = 'DHT11';
+
+function handleLine(raw) {
+  const line = raw.replace(/\r/g, '').trim();
+  if (!line) return;
+
+  if (line.indexOf('温湿度数据') >= 0) {
+    cur = { sensor: curSensor };
+    expect = null;
+    return;
+  }
+
+  if (/^={3,}$/.test(line)) {
+    finishRecord();
+    return;
+  }
+
+  const m = line.match(/^DHT(\d+)\s*(温度|湿度)\s*[:：]?\s*(-?\d+(?:\.\d+)?)?$/);
+  if (m) {
+    curSensor = 'DHT' + m[1];
+    if (!cur) cur = { sensor: curSensor };
+    cur.sensor = curSensor;
+    expect = (m[2] === '温度') ? 'temp' : 'humi';
+    if (m[3] !== undefined) {
+      cur[expect] = parseFloat(m[3]);
+      expect = null;
+    }
+    return;
+  }
+
+  if (/^-?\d+(?:\.\d+)?$/.test(line) && expect && cur) {
+    cur[expect] = parseFloat(line);
+    expect = null;
+    return;
+  }
+
+  const mt = line.match(/(?:温度|Temp)\D*(-?\d+(?:\.\d+)?)/i);
+  const mh = line.match(/(?:湿度|Humi(?:dity)?)\D*(-?\d+(?:\.\d+)?)/i);
+  if (mt && mh) {
+    addRecord({
+      time: new Date(),
+      sensor: curSensor,
+      temp: parseFloat(mt[1]),
+      humi: parseFloat(mh[1])
+    });
+  }
+}
+
+function finishRecord() {
+  if (cur && cur.temp != null && cur.humi != null) {
+    addRecord({
+      time: new Date(),
+      sensor: cur.sensor || curSensor,
+      temp: cur.temp,
+      humi: cur.humi
+    });
+  }
+  cur = null;
+  expect = null;
+}
+
+/* ============================================================
+ *  记录管理
+ * ============================================================ */
+function addRecord(rec) {
+  rec.no = records.length + 1;
+  records.push(rec);
+
+  if (records.length > MAX_RECORDS) {
+    const drop = records.length - MAX_RECORDS;
+    records.splice(0, drop);
+    savedIndex = Math.max(0, savedIndex - drop);
+    for (let i = 0; i < records.length; i++) records[i].no = i + 1;
+    rebuildTable();
+  } else {
+    pushRow(rec);
+  }
+
+  updateStats();
+  updateListBadge();
+  scheduleChart();
+  updateAutoLabel();
+  // 更新文件信息卡（如果列段位置变化，进度条会同步）
+  if (dirHandle) updateFileInfo();
+}
+
+function pushRow(rec) {
+  if (tbodyEl.querySelector('.empty')) tbodyEl.innerHTML = '';
+
+  let tr;
+  if (tbodyEl.children.length >= MAX_LIVE_ROWS) {
+    tr = tbodyEl.lastElementChild;
+    tr.remove();
+  } else {
+    tr = document.createElement('tr');
+    for (let i = 0; i < 5; i++) tr.appendChild(document.createElement('td'));
+  }
+
+  const td = tr.children;
+  td[0].textContent = rec.no;
+  td[1].textContent = fmtTime(rec.time);
+  td[2].textContent = rec.sensor;
+  td[3].textContent = rec.temp.toFixed(1); td[3].className = 't';
+  td[4].textContent = rec.humi.toFixed(1); td[4].className = 'h';
+
+  tr.classList.remove('fresh');
+  void tr.offsetWidth;
+  tr.classList.add('fresh');
+
+  tbodyEl.insertBefore(tr, tbodyEl.firstChild);
+}
+
+function rebuildTable() {
+  tbodyEl.innerHTML = '';
+  if (!records.length) {
+    tbodyEl.innerHTML = '<tr><td colspan="5" class="empty">等待串口数据…</td></tr>';
+    return;
+  }
+  const start = Math.max(0, records.length - MAX_LIVE_ROWS);
+  for (let i = records.length - 1; i >= start; i--) {
+    const rec = records[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${rec.no}</td>` +
+      `<td>${fmtTime(rec.time)}</td>` +
+      `<td>${rec.sensor}</td>` +
+      `<td class="t">${rec.temp.toFixed(1)}</td>` +
+      `<td class="h">${rec.humi.toFixed(1)}</td>`;
+    tbodyEl.appendChild(tr);
+  }
+}
+
+function updateListBadge() {
+  const shown = tbodyEl.querySelector('.empty') ? 0 : tbodyEl.children.length;
+  listBadgeEl.textContent = `${shown} / ${MAX_LIVE_ROWS}`;
+}
+
+function updateStats() {
+  const n = records.length;
+  if (!n) {
+    statsEl.innerHTML = '<div class="stat"><b>--</b><span>暂无数据</span></div>';
+    return;
+  }
+  let tMin = Infinity, tMax = -Infinity, hMin = Infinity, hMax = -Infinity;
+  let tSum = 0, hSum = 0;
+  for (const r of records) {
+    if (r.temp < tMin) tMin = r.temp;
+    if (r.temp > tMax) tMax = r.temp;
+    if (r.humi < hMin) hMin = r.humi;
+    if (r.humi > hMax) hMax = r.humi;
+    tSum += r.temp; hSum += r.humi;
+  }
+  const last = records[records.length - 1];
+  statsEl.innerHTML = `
+    <div class="stat"><b>${n}</b><span>记录条数</span></div>
+    <div class="stat"><b>${last.temp.toFixed(1)} ℃</b><span>当前温度</span></div>
+    <div class="stat"><b>${last.humi.toFixed(1)} %</b><span>当前湿度</span></div>
+    <div class="stat"><b>${(tSum / n).toFixed(1)} ℃</b><span>平均温度</span></div>
+    <div class="stat"><b>${(hSum / n).toFixed(1)} %</b><span>平均湿度</span></div>
+    <div class="stat"><b>${tMin.toFixed(1)}~${tMax.toFixed(1)}</b><span>温度范围 ℃</span></div>
+  `;
+}
+
+/* ============================================================
+ *  折线图
+ * ============================================================ */
+let chartPending = false;
+
+function scheduleChart() {
+  if (chartPending) return;
+  chartPending = true;
+  requestAnimationFrame(() => {
+    chartPending = false;
+    drawChart();
+  });
+}
+
+function drawChart() {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width  * dpr);
+  const h = Math.round(rect.height * dpr);
+  if (canvas.width !== w)  canvas.width  = w;
+  if (canvas.height !== h) canvas.height = h;
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = rect.width, H = rect.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.textBaseline = 'middle';
+
+  const P = { l: 46, r: 14, t: 14, b: 24 };
+  const cw = W - P.l - P.r;
+  const ch = H - P.t - P.b;
+
+  const data = records.slice(-400);
+
+  if (data.length < 2) {
+    ctx.fillStyle = themeColors.axis;
+    ctx.textAlign = 'center';
+    ctx.fillText('等待数据…', W / 2, H / 2);
+    return;
+  }
+
+  let min = Infinity, max = -Infinity;
+  for (const r of data) {
+    if (r.temp < min) min = r.temp;
+    if (r.humi < min) min = r.humi;
+    if (r.temp > max) max = r.temp;
+    if (r.humi > max) max = r.humi;
+  }
+  let span = max - min;
+  if (span < 1) span = 1;
+  min -= span * 0.12;
+  max += span * 0.12;
+
+  const X = i => P.l + i * cw / (data.length - 1);
+  const Y = v => P.t + ch - (v - min) / (max - min) * ch;
+
+  ctx.strokeStyle = themeColors.grid;
+  ctx.lineWidth = 1;
+  ctx.fillStyle = themeColors.axis;
+  ctx.textAlign = 'right';
+  for (let k = 0; k <= 4; k++) {
+    const v = min + (max - min) * k / 4;
+    const y = Math.round(Y(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(P.l, y); ctx.lineTo(P.l + cw, y); ctx.stroke();
+    ctx.fillText(v.toFixed(1), P.l - 6, y);
+  }
+
+  const drawLine = (key, color) => {
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = X(i), y = Y(data[i][key]);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  };
+  drawLine('temp', themeColors.temp);
+  drawLine('humi', themeColors.humi);
+
+  ctx.fillStyle = themeColors.axis;
+  ctx.textAlign = 'left';
+  ctx.fillText(fmtHMS(data[0].time), P.l, H - 10);
+  ctx.textAlign = 'right';
+  ctx.fillText(fmtHMS(data[data.length - 1].time), P.l + cw, H - 10);
+}
+
+/* ============================================================
+ *  CSV 数据行
+ * ============================================================ */
+const CSV_HEADER = '时间,传感器,温度(℃),湿度(%)';
+
+function csvLine(r) {
+  return `${fmtTime(r.time)},${r.sensor},${r.temp.toFixed(1)},${r.humi.toFixed(1)}`;
+}
+
+/* ============================================================
+ *  选择保存位置
+ * ============================================================ */
+async function chooseFolder() {
+  if (!window.showDirectoryPicker) {
+    alert('当前浏览器不支持"指定保存位置"功能。\n\n请使用桌面版 Chrome / Edge 打开本页，\n或直接使用"导出全部记录"按钮下载 CSV 文件。');
+    return;
+  }
+  try {
+    const h = await window.showDirectoryPicker({ mode: 'readwrite', id: 'esp32-th-log' });
+
+    let perm = await h.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await h.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') { alert('未获得写入权限，无法自动保存。'); return; }
+
+    dirHandle = h;
+    folderNameEl.textContent = h.name;
+
+    try { await idbSet('dirHandle', h); } catch (e) {}
+
+    // ★ 扫描已有文件，恢复记录 + 推算写入位置
+    lastSaveEl.textContent = '正在扫描已有文件…';
+    await scanExistingFile();
+
+    if (savedIndex > 0) {
+      const pos = nextWritePos(savedIndex);
+      lastSaveEl.innerHTML =
+        `已恢复文件：共 ${savedIndex.toLocaleString()} 条记录<br>` +
+        `下一写入位置：<b>第 ${pos.seg + 1} 段</b> ` +
+        `<span class="cols">${segColRange(pos.seg)}</span> 列（第 ${(pos.row + 1).toLocaleString()} 行）`;
+    } else {
+      lastSaveEl.textContent = '已选择目录，等待保存…';
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') { console.error(e); alert('选择目录失败：' + e.message); }
+  }
+}
+
+/* ============================================================
+ *  自动保存定时器
+ * ============================================================ */
+function applyInterval(mins) {
+  nextSaveAt = mins > 0 ? Date.now() + mins * 60000 : 0;
+  updateAutoLabel();
+}
+
+function updateAutoLabel() {
+  if (!nextSaveAt) {
+    const m = parseInt(intervalEl.value, 10) || 0;
+    autoStateEl.textContent = m > 0
+      ? `自动保存：每 ${m} 分钟（待启动）`
+      : '自动保存：已关闭（间隔设为 0）';
+    return;
+  }
+  const left = Math.max(0, nextSaveAt - Date.now());
+  const s = Math.ceil(left / 1000);
+  autoStateEl.textContent =
+    `自动保存：${pad2(Math.floor(s / 60))}:${pad2(s % 60)} 后（每 ${intervalEl.value} 分钟）`;
+}
+
+setInterval(() => {
+  if (!nextSaveAt) return;
+  const left = nextSaveAt - Date.now();
+  if (left <= 0) {
+    nextSaveAt = 0;
+    const mins = parseInt(intervalEl.value, 10) || 0;
+    doSave(true).finally(() => {
+      if (mins > 0) nextSaveAt = Date.now() + mins * 60000;
+      updateAutoLabel();
+    });
+  } else {
+    updateAutoLabel();
+  }
+}, 1000);
+
+/* ============================================================
+ *  事件绑定
+ * ============================================================ */
+btnConnect.addEventListener('click', connect);
+btnFolder.addEventListener('click', chooseFolder);
+btnSaveNow.addEventListener('click', () => doSave(false));
+btnExportAll.addEventListener('click', exportAll);
+
+/* 文件名变化 → 重新扫描（防抖） */
+let scanTimer = null;
+function scheduleScan() {
+  if (!dirHandle) { updateFileInfo(); return; }
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(async () => {
+    // 文件名变了，扫描新文件
+    savedIndex = 0;
+    records.length = 0;
+    rebuildTable();
+    updateStats();
+    updateListBadge();
+    await scanExistingFile();
+  }, 500);
+}
+fnameEl.addEventListener('input', scheduleScan);
+fnameEl.addEventListener('change', scheduleScan);
+
+function syncInterval(src) {
+  let v = parseInt(src.value, 10);
+  if (isNaN(v)) v = 0;
+  v = Math.min(60, Math.max(0, v));
+  intervalEl.value = v;
+  rangeEl.value = v;
+  applyInterval(v);
+}
+intervalEl.addEventListener('input', () => syncInterval(intervalEl));
+intervalEl.addEventListener('change', () => syncInterval(intervalEl));
+rangeEl.addEventListener('input', () => syncInterval(rangeEl));
+
+btnClear.addEventListener('click', () => {
+  if (!records.length) return;
+  if (!confirm('确定清空当前页面显示的所有记录吗？\n（已写入 CSV 文件的数据不受影响）')) return;
+  records.length = 0;
+  savedIndex = 0;
+  rebuildTable();
+  updateListBadge();
+  updateStats();
+  updateFileInfo();
+  scheduleChart();
+});
+
+/* ------- 模拟数据 ------- */
+let mockTimer = null;
+btnMock.addEventListener('click', () => {
+  if (mockTimer) {
+    clearInterval(mockTimer);
+    mockTimer = null;
+    btnMock.textContent = '模拟数据';
+    return;
+  }
+  btnMock.textContent = '停止模拟';
+  let t = 24 + Math.random() * 4;
+  let h = 55 + Math.random() * 10;
+
+  const gen = () => {
+    t += (Math.random() - 0.5) * 0.8;
+    h += (Math.random() - 0.5) * 2.0;
+    h = Math.min(95, Math.max(20, h));
+    addRecord({
+      time: new Date(),
+      sensor: 'DHT11',
+      temp: parseFloat(t.toFixed(1)),
+      humi: parseFloat(h.toFixed(1))
+    });
+  };
+  gen();
+  mockTimer = setInterval(gen, 2000);
+});
+
+/* ------- 窗口尺寸变化 ------- */
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(scheduleChart, 150);
+});
+
+/* ------- 页面关闭前提示 ------- */
+window.addEventListener('beforeunload', () => {
+  if (dirHandle && records.length > savedIndex) {
+    return '还有未保存的数据，确定离开吗？';
+  }
+});
+
+/* ============================================================
+ *  初始化
+ * ============================================================ */
+(function initTheme() {
+  let saved = 'dark';
+  try { saved = localStorage.getItem(THEME_KEY) || 'dark'; } catch (e) {}
+  if (!THEME_LIST.includes(saved)) saved = 'dark';
+  applyTheme(saved, false);
+})();
+
+(async function initBg() {
+  await loadBg();
+  applyBg(false);
+  syncBgUI();
+})();
+
+(async function init() {
+  updateStats();
+  updateListBadge();
+  updateFileInfo();
+  scheduleChart();
+  syncInterval(intervalEl);
+
+  // 恢复上次选择的保存目录
+  try {
+    const h = await idbGet('dirHandle');
+    if (h) {
+      const perm = await h.queryPermission({ mode: 'readwrite' });
+      folderNameEl.textContent = h.name + (perm === 'granted' ? '' : '（需重新授权）');
+      if (perm === 'granted') {
+        dirHandle = h;
+        // 扫描已有文件
+        await scanExistingFile();
+        if (savedIndex > 0) {
+          const pos = nextWritePos(savedIndex);
+          lastSaveEl.innerHTML =
+            `已恢复文件：共 ${savedIndex.toLocaleString()} 条记录<br>` +
+            `下一写入位置：<b>第 ${pos.seg + 1} 段</b> ` +
+            `<span class="cols">${segColRange(pos.seg)}</span> 列（第 ${(pos.row + 1).toLocaleString()} 行）`;
+        } else {
+          lastSaveEl.textContent = '已恢复上次的保存目录。';
+        }
+      }
+    }
+  } catch (e) { /* 忽略 */ }
+
+  if (!('serial' in navigator)) {
+    setStatus('浏览器不支持 Web Serial', false);
+    statusEl.style.color = 'var(--warn)';
+  }
+})();
+</script>
+</body>
+</html>
